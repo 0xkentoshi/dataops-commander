@@ -68,7 +68,7 @@ def copy_sqlite_database(source_path: Path, destination_path: Path) -> None:
         source.backup(destination)
         check = destination.execute("PRAGMA quick_check").fetchone()
         if check is None or check[0] != "ok":
-            raise RuntimeError(f"SQLite backup повреждён: {check}")
+            raise RuntimeError(f"SQLite backup is corrupted: {check}")
     finally:
         destination.close()
         source.close()
@@ -82,20 +82,20 @@ def execute_excel_batch(
     snapshots_root: Path = Path("data/snapshots/excel"),
 ) -> BatchExecutionOutcome:
     if not steps:
-        raise ValueError("Batch Excel пуст.")
+        raise ValueError("Excel batch is empty.")
     write_steps = [item for item in steps if item[0].action in WRITE_ACTIONS and item[1].has_changes]
     if not write_steps:
-        raise ValueError("Batch не содержит изменений.")
+        raise ValueError("The batch contains no changes.")
 
     initial_hash = steps[0][1].source_sha256
     if _sha256(source_path) != initial_hash:
-        raise ValueError("Исходный файл изменился после preview. Создайте план заново.")
+        raise ValueError("The source file changed after the preview. Build the plan again.")
 
     snapshots_root.mkdir(parents=True, exist_ok=True)
     snapshot_path = snapshots_root / _snapshot_name(original_name, batch_id, ".xlsx")
     shutil.copy2(source_path, snapshot_path)
     if _sha256(snapshot_path) != initial_hash:
-        raise RuntimeError("Snapshot Excel не совпал с исходником.")
+        raise RuntimeError("The Excel snapshot does not match the source file.")
 
     fd, temporary_name = tempfile.mkstemp(
         prefix=f".dataops-batch-{source_path.stem}-",
@@ -125,8 +125,8 @@ def execute_excel_batch(
                 fresh_semantic.pop("source_sha256", None)
                 if fresh_semantic != stored_semantic:
                     raise ValueError(
-                        f"Данные для задачи {index} изменились после preview. "
-                        "Создайте план заново."
+                        f"The data for task {index} changed after the preview. "
+                        "Build the plan again."
                     )
                 if plan.action in WRITE_ACTIONS and fresh.has_changes:
                     outcome = execute_operation(
@@ -143,7 +143,7 @@ def execute_excel_batch(
 
         # Внешнее изменение источника между planning и confirm не должно быть затёрто.
         if _sha256(source_path) != initial_hash:
-            raise ValueError("Исходный файл изменился после preview. Создайте план заново.")
+            raise ValueError("The source file changed after the preview. Build the plan again.")
 
         os.replace(temporary_path, source_path)
         replaced = True
@@ -155,8 +155,8 @@ def execute_excel_batch(
                 os.replace(restore_path, source_path)
             except Exception as restore_error:
                 raise RuntimeError(
-                    "Batch Excel записан, проверка не прошла и восстановление "
-                    f"не удалось: {restore_error}"
+                    "Excel batch was written, verification failed, and restore "
+                    f"failed: {restore_error}"
                 ) from error
         raise
     finally:
@@ -180,12 +180,12 @@ def execute_sqlite_batch(
     snapshots_root: Path = Path("data/snapshots/sqlite"),
 ) -> BatchExecutionOutcome:
     if not steps:
-        raise ValueError("Batch SQLite пуст.")
+        raise ValueError("SQLite batch is empty.")
     write_steps = [
         item for item in steps if item[0].action in SQL_WRITE_ACTIONS and item[1].has_changes
     ]
     if not write_steps:
-        raise ValueError("Batch не содержит изменений.")
+        raise ValueError("The batch contains no changes.")
 
     snapshots_root.mkdir(parents=True, exist_ok=True)
     snapshot_path = snapshots_root / _snapshot_name(original_name, batch_id, ".sqlite3")
@@ -208,8 +208,8 @@ def execute_sqlite_batch(
                 or fresh.matched_rows != preview.matched_rows
             ):
                 raise ValueError(
-                    f"Данные для задачи {index} изменились после preview. "
-                    "Создайте план заново."
+                    f"The data for task {index} changed after the preview. "
+                    "Build the plan again."
                 )
             if plan.action in SQL_WRITE_ACTIONS and fresh.has_changes:
                 outcome = execute_sql_operation(
@@ -232,8 +232,8 @@ def execute_sqlite_batch(
                 copy_sqlite_database(snapshot_path, source_path)
             except Exception as restore_error:
                 raise RuntimeError(
-                    "Batch SQLite не прошёл проверку и восстановление snapshot "
-                    f"не удалось: {restore_error}"
+                    "SQLite batch verification failed and snapshot restore "
+                    f"failed: {restore_error}"
                 ) from error
             raise
 

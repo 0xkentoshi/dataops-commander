@@ -202,7 +202,7 @@ class DataRepository:
         with self._connect() as connection:
             row = connection.execute("SELECT 1").fetchone()
         if row is None or row[0] != 1:
-            raise RuntimeError("SQLite не ответил на проверочный запрос.")
+            raise RuntimeError("SQLite did not respond to the health-check query.")
 
     def _event(
         self,
@@ -237,8 +237,8 @@ class DataRepository:
 
         moment = _now()
         reason = (
-            "Бот был перезапущен во время выполнения. Перед повтором нужно "
-            "перечитать источник: запись могла завершиться до остановки процесса."
+            "The bot restarted during execution. Re-read the source before retrying because "
+            "the write may have completed before shutdown."
         )
         for row in rows:
             connection.execute(
@@ -390,7 +390,7 @@ class DataRepository:
             return None
         updated_at = _datetime(row["updated_at"])
         if updated_at is None:
-            raise ValueError("У источника отсутствует updated_at.")
+            raise ValueError("The source record has no updated_at value.")
         return ActiveSourceRecord(
             user_id=row["user_id"],
             file_path=row["file_path"],
@@ -446,7 +446,7 @@ class DataRepository:
             return None
         updated_at = _datetime(row["updated_at"])
         if updated_at is None:
-            raise ValueError("У файлового дисплея отсутствует updated_at.")
+            raise ValueError("The file-dashboard record has no updated_at value.")
         return DashboardRecord(
             user_id=row["user_id"],
             chat_id=row["chat_id"],
@@ -592,7 +592,7 @@ class DataRepository:
         )
 
     def expire_operation(self, operation_id: str, user_id: int) -> bool:
-        reason = "Истекли 15 минут подтверждения."
+        reason = "The 15-minute confirmation window expired."
         return self._change(
             operation_id,
             user_id,
@@ -738,7 +738,7 @@ class DataRepository:
         created_at = _datetime(row["created_at"])
         updated_at = _datetime(row["updated_at"])
         if created_at is None or updated_at is None:
-            raise ValueError("У операции отсутствуют timestamps.")
+            raise ValueError("The operation has no timestamps.")
         return OperationRecord(
             operation_id=row["operation_id"],
             user_id=row["user_id"],

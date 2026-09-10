@@ -244,6 +244,7 @@ COMMAND MODES
 19. source_name_hint не заполняй старым именем файла при repeat_last, если
     пользователь повторяет операцию на новом источнике.
 20. Возвращай только JSON по схеме. Никакого текста вокруг JSON.
+21. User-facing field clarification_question must always be in English. Preserve exact filenames, sheet/table names, column names and data values from runtime_context.
 
 ACTION SEMANTICS
 - open_source: выбрать/открыть источник;
@@ -344,5 +345,5 @@ class IntentParser:
     ) -> IntentDraft:
         tasks = await self.parse_many(user_text, runtime_context)
         if not tasks:
-            raise ValueError("Команда не содержит data-задачи.")
+            raise ValueError("The command contains no data task.")
         return tasks[0]

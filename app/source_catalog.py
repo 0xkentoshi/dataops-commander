@@ -44,9 +44,9 @@ SOURCE_KIND_LABELS = {
     SourceKind.SQLITE: "SQLite",
     SourceKind.CSV: "CSV",
     SourceKind.TSV: "TSV",
-    SourceKind.SQL_SCRIPT: "SQL-скрипт",
+    SourceKind.SQL_SCRIPT: "SQL script",
     SourceKind.JSON: "JSON",
-    SourceKind.OTHER: "Файл",
+    SourceKind.OTHER: "File",
 }
 
 EDITABLE_SOURCE_KINDS = {SourceKind.EXCEL, SourceKind.SQLITE}
@@ -70,7 +70,7 @@ class DataSource:
 
     @property
     def origin_label(self) -> str:
-        return "Локальный" if self.origin == SourceOrigin.LOCAL else "ТГ"
+        return "Local" if self.origin == SourceOrigin.LOCAL else "TG"
 
     @property
     def kind_label(self) -> str:
@@ -141,7 +141,7 @@ def _source(
         path=path.resolve(),
         display_name=display_name,
         relative_name=relative_name,
-        extension=path.suffix.casefold() or "без расширения",
+        extension=path.suffix.casefold() or "no extension",
         size_bytes=stat.st_size,
         modified_ns=stat.st_mtime_ns,
     )

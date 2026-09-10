@@ -281,7 +281,7 @@ class DataOpsV4Tests(unittest.TestCase):
             workbook.save(self.excel)
         finally:
             workbook.close()
-        with self.assertRaisesRegex(ValueError, "изменился после preview"):
+        with self.assertRaisesRegex(ValueError, "changed after the preview"):
             execute_operation(
                 self.excel,
                 self.excel.name,
@@ -304,7 +304,7 @@ class DataOpsV4Tests(unittest.TestCase):
         )
         preview = self.execute_excel(plan, "replace-all")
         self.assertGreater(preview.affected_cells, 0)
-        self.assertIn("заполненных ячеек", preview.summary)
+        self.assertIn("filled cells", preview.summary)
         workbook = load_workbook(self.excel)
         try:
             non_empty = [

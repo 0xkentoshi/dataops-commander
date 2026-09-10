@@ -54,7 +54,7 @@ class ClearCellTests(unittest.TestCase):
         preview = build_operation_preview(self.excel, plan, metadata)
         self.assertEqual(preview.affected_cells, 1)
         self.assertEqual(preview.matched_cell_addresses, ["D3"])
-        self.assertIn("Строки и столбцы сохранятся", preview.summary)
+        self.assertIn("Rows and columns will be preserved", preview.summary)
 
         execute_operation(
             self.excel,

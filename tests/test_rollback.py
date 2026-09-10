@@ -53,7 +53,7 @@ class RollbackTests(unittest.TestCase):
             old_hash = sha256_file(source)
             self._write_book(source, "manual edit")
 
-            with self.assertRaisesRegex(ValueError, "изменился"):
+            with self.assertRaisesRegex(ValueError, "changed after the latest operation"):
                 restore_snapshot(
                     source,
                     snapshot,

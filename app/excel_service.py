@@ -107,7 +107,7 @@ def _repair_read_only_dimensions(worksheet: Any) -> bool:
     """Пересчитывает подозрительные XLSX dimensions.
 
     Некоторые экспортёры сохраняют в sheet XML неверный `<dimension ref>`,
-    например A1:A1, хотя в книге реально тысячи строк и несколько столбцов.
+    например A1:A1, хотя в книге реально тысячи строк и несколько columns were inspected.
     openpyxl в read_only-режиме доверяет этому ref и тогда видит только A1.
     `reset_dimensions()` + `calculate_dimension(force=True)` заставляет один
     раз пройти XML и восстановить фактический используемый диапазон.
@@ -134,7 +134,7 @@ def inspect_workbook(file_path: Path, original_name: str) -> WorkbookMetadata:
     рабочий размер для структурного анализа.
     """
     if not file_path.is_file():
-        raise ValueError("Excel-файл больше не существует.")
+        raise ValueError("The Excel file no longer exists.")
 
     workbook = load_workbook(file_path, read_only=True, data_only=False)
     sheets: list[SheetMetadata] = []
@@ -145,16 +145,16 @@ def inspect_workbook(file_path: Path, original_name: str) -> WorkbookMetadata:
             repaired_dimensions = _repair_read_only_dimensions(worksheet)
             if repaired_dimensions:
                 warnings.append(
-                    f"Лист «{worksheet.title}»: фактический диапазон ячеек "
-                    "пересчитан из XLSX, потому что служебные dimensions были подозрительными."
+                    f"Sheet “{worksheet.title}”: the actual cell range was "
+                    "recalculated from XLSX because the stored dimensions looked suspicious."
                 )
 
             actual_max_column = max(worksheet.max_column or 1, 1)
             max_column = min(actual_max_column, MAX_COLUMNS_TO_SCAN)
             if actual_max_column > MAX_COLUMNS_TO_SCAN:
                 warnings.append(
-                    f"Лист «{worksheet.title}»: просмотрены только первые "
-                    f"{MAX_COLUMNS_TO_SCAN} столбцов."
+                    f"Sheet “{worksheet.title}”: only the first "
+                    f"{MAX_COLUMNS_TO_SCAN} columns were inspected."
                 )
 
             worksheet_max_row = max(worksheet.max_row or 1, 1)
@@ -177,8 +177,8 @@ def inspect_workbook(file_path: Path, original_name: str) -> WorkbookMetadata:
             )
             if worksheet_max_row > last_row:
                 warnings.append(
-                    f"Лист «{worksheet.title}»: статистика рассчитана по первым "
-                    f"{MAX_DATA_ROWS_TO_SCAN} строкам данных."
+                    f"Sheet “{worksheet.title}”: statistics were calculated from the first "
+                    f"{MAX_DATA_ROWS_TO_SCAN} data rows."
                 )
 
             stats = [
@@ -228,7 +228,7 @@ def inspect_workbook(file_path: Path, original_name: str) -> WorkbookMetadata:
                 header = (
                     _stringify(header_value)
                     if not _is_empty(header_value)
-                    else f"<без названия {letter}>"
+                    else f"<unnamed {letter}>"
                 )
                 total_formula_cells += int(item["formula"])
                 columns.append(
@@ -255,7 +255,7 @@ def inspect_workbook(file_path: Path, original_name: str) -> WorkbookMetadata:
         workbook.close()
 
     if not sheets:
-        warnings.append("В книге не найдено ни одного листа.")
+        warnings.append("No worksheets were found in the workbook.")
     return WorkbookMetadata(
         original_name=original_name,
         sheets=sheets,

@@ -62,9 +62,9 @@ class FilterCondition(BaseModel):
     def validate_filter_value(self) -> "FilterCondition":
         no_value_operators = {FilterOperator.IS_EMPTY, FilterOperator.NOT_EMPTY}
         if self.operator in no_value_operators and self.value is not None:
-            raise ValueError("Для is_empty/not_empty value должен быть null.")
+            raise ValueError("For is_empty/not_empty, value must be null.")
         if self.operator not in no_value_operators and self.value is None:
-            raise ValueError(f"Для оператора {self.operator.value} нужен value.")
+            raise ValueError(f"Operator {self.operator.value} requires a value.")
         return self
 
 
@@ -103,41 +103,41 @@ class ExcelOperationPlan(BaseModel):
         if not self.resolved:
             return self
         if self.action not in SUPPORTED_EXCEL_ACTIONS:
-            raise ValueError("Действие пока не поддерживается Excel engine.")
+            raise ValueError("This action is not supported by the Excel engine yet.")
         if self.action != Action.REPLACE_ALL_VALUES and not self.sheet_name:
-            raise ValueError("Для resolved-плана обязателен sheet_name.")
+            raise ValueError("A resolved plan requires sheet_name.")
         if self.action in {Action.DROP_COLUMN, Action.RENAME_COLUMN}:
             if len(self.target_columns) != 1:
-                raise ValueError("Нужен ровно один целевой столбец.")
+                raise ValueError("Exactly one target column is required.")
         if self.action == Action.RENAME_COLUMN and not self.new_column_name:
-            raise ValueError("Для rename_column нужно новое имя.")
+            raise ValueError("rename_column requires a new name.")
         if self.action == Action.ADD_COLUMN and not self.new_column_name:
-            raise ValueError("Для add_column нужно имя нового столбца.")
+            raise ValueError("add_column requires a new column name.")
         if self.action == Action.UPDATE_ROWS:
             if not self.filters and not self.apply_to_all_rows:
                 raise ValueError(
-                    "UPDATE без фильтра разрешён только при явном apply_to_all_rows=true."
+                    "UPDATE without filters is allowed only with explicit apply_to_all_rows=true."
                 )
             if not self.assignments:
-                raise ValueError("Для UPDATE нужны присваивания.")
+                raise ValueError("UPDATE requires assignments.")
         if self.action == Action.REPLACE_ALL_VALUES:
             if self.replacement_value is None:
-                raise ValueError("Для замены всех ячеек нужно replacement_value.")
+                raise ValueError("replace_all_values requires replacement_value.")
             if self.filters or self.assignments or self.target_columns:
                 raise ValueError(
-                    "replace_all_values не использует лист, фильтры или столбцы."
+                    "replace_all_values does not use a sheet, filters, or target columns."
                 )
         if self.action == Action.DELETE_ROWS and not self.filters:
-            raise ValueError("DELETE ROWS без фильтра запрещён.")
+            raise ValueError("DELETE ROWS without a filter is not allowed.")
         if self.action == Action.CLEAR_VALUES:
             if not self.target_columns and self.match_cell_value is None:
-                raise ValueError("Для очистки нужен столбец или точное значение ячейки.")
+                raise ValueError("CLEAR requires a target column or an exact cell value.")
             if self.match_cell_value is not None and self.target_columns:
-                raise ValueError("Поиск ячеек по значению не смешивается с очисткой столбцов.")
+                raise ValueError("Cell search by value cannot be combined with column clearing.")
             if self.match_cell_value is not None and self.filters:
-                raise ValueError("Поиск ячеек по значению не использует построчные filters.")
+                raise ValueError("Cell search by value does not use row filters.")
         if self.action == Action.DEDUPLICATE and not self.deduplicate_columns:
-            raise ValueError("Для удаления дублей нужны ключевые столбцы.")
+            raise ValueError("Deduplication requires key columns.")
         return self
 
 
@@ -174,7 +174,10 @@ Python НЕ будет пытаться повторно понимать рус
    предпочти именно его.
 6. Все filters объединяются AND.
 7. update_rows без filters разрешён только при явном запросе изменить все строки:
-   тогда apply_to_all_rows=true. Иначе resolved=false.
+   тогда apply_to_all_rows=true. Иначе resolved=false. Для update_rows ОБЯЗАТЕЛЬНО
+   заполняй assignments: каждый изменяемый столбец должен быть ColumnAssignment с
+   реальным ColumnRef и value. Не кодируй UPDATE через target_columns +
+   replacement_value — эти поля не заменяют assignments.
 8. delete_rows без filters всегда запрещён.
 9. clear_values по конкретному содержимому: match_cell_value=X. Если пользователь
    явно просит все совпадения, match_all_cells=true; иначе false.
@@ -192,6 +195,7 @@ Python НЕ будет пытаться повторно понимать рус
     два действительно равнозначных объекта каталога.
 16. resolution_note — коротко, без скрытого chain-of-thought.
 17. Возвращай только JSON по схеме.
+18. User-facing fields clarification_question and resolution_note must always be in English. Preserve exact sheet names, column names and data values from the source.
 """.strip()
 
 
@@ -231,14 +235,14 @@ def _build_catalog(metadata: WorkbookMetadata) -> dict:
 def _sheet(metadata: WorkbookMetadata, name: str) -> SheetMetadata:
     result = next((sheet for sheet in metadata.sheets if sheet.name == name), None)
     if result is None:
-        raise ValueError(f"Лист «{name}» отсутствует в каталоге.")
+        raise ValueError(f"Sheet “{name}” is not present in the catalog.")
     return result
 
 
 def _validate_ref(sheet: SheetMetadata, ref: ColumnRef) -> None:
     actual = next((column for column in sheet.columns if column.index == ref.index), None)
     if actual is None or actual.header != ref.header:
-        raise ValueError(f"Столбец {ref.index} / «{ref.header}» не совпал с каталогом.")
+        raise ValueError(f"Column {ref.index} / “{ref.header}” does not match the catalog.")
 
 
 def _exact_hint_refs(intent: IntentDraft, sheet: SheetMetadata) -> set[int]:
@@ -257,13 +261,13 @@ def _validate_against_catalog(
     metadata: WorkbookMetadata,
 ) -> ExcelOperationPlan:
     if plan.action != intent.action:
-        raise ValueError("Планировщик изменил action из разобранного намерения.")
+        raise ValueError("The planner changed the action from the parsed intent.")
     if not plan.resolved:
         return plan
     if plan.action == Action.REPLACE_ALL_VALUES:
         return plan
     if plan.sheet_name is None:
-        raise ValueError("Не указан лист.")
+        raise ValueError("No sheet was specified.")
     sheet = _sheet(metadata, plan.sheet_name)
     refs = [
         *plan.selected_columns,
@@ -283,7 +287,7 @@ def _validate_against_catalog(
             actual = {ref.index for ref in plan.deduplicate_columns}
             if actual != expected:
                 raise ValueError(
-                    "Ключ дедупликации из intent не совпал с ключом Excel-плана."
+                    "The deduplication key from the intent does not match the Excel plan."
                 )
 
     # Safety invariant based on STRUCTURED intent, not re-parsing user language.
@@ -294,14 +298,89 @@ def _validate_against_catalog(
         and not plan.filters
         and not plan.apply_to_all_rows
     ):
-        raise ValueError("Intent содержит фильтр, но Excel-план потерял его.")
+        raise ValueError("The intent contains a filter, but the Excel plan lost it.")
 
     if plan.new_column_name:
         normalized = plan.new_column_name.strip().casefold()
         if any(column.header.strip().casefold() == normalized for column in sheet.columns):
-            raise ValueError(f"Столбец «{plan.new_column_name}» уже существует.")
+            raise ValueError(f"Column “{plan.new_column_name}” already exists.")
     return plan
 
+
+
+def _normalize_structural_plan_payload(payload: dict) -> dict:
+    """Repair safe field-shape aliases without re-interpreting user language.
+
+    Some local models occasionally represent a single-column UPDATE as
+    target_columns + replacement_value even though the executor schema requires
+    assignments. When that mapping is unambiguous, normalize only the structure.
+    No column/value is inferred from raw user text here.
+    """
+    normalized = dict(payload)
+    action = normalized.get("action")
+    assignments = normalized.get("assignments") or []
+    target_columns = normalized.get("target_columns") or []
+    replacement_value = normalized.get("replacement_value")
+
+    if (
+        action == Action.UPDATE_ROWS.value
+        and not assignments
+        and len(target_columns) == 1
+        and replacement_value is not None
+    ):
+        normalized["assignments"] = [
+            {
+                "column": target_columns[0],
+                "value": replacement_value,
+            }
+        ]
+        normalized["target_columns"] = []
+        normalized["replacement_value"] = None
+
+    return normalized
+
+
+def _parse_and_validate_plan(
+    raw: str,
+    intent: IntentDraft,
+    metadata: WorkbookMetadata,
+) -> ExcelOperationPlan:
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError as error:
+        raise ValueError(f"Planner returned invalid JSON: {error}") from error
+    if not isinstance(payload, dict):
+        raise ValueError("Planner JSON must be an object.")
+    payload = _normalize_structural_plan_payload(payload)
+    parsed = ExcelOperationPlan.model_validate(payload)
+    return _validate_against_catalog(parsed, intent, metadata)
+
+
+def _action_shape_contract(action: Action) -> str:
+    if action == Action.UPDATE_ROWS:
+        return (
+            "For update_rows: assignments MUST contain at least one object with "
+            "the real target ColumnRef and the value to write. Row-selection "
+            "conditions belong in filters. Do not encode an update only as "
+            "target_columns/replacement_value."
+        )
+    if action == Action.RENAME_COLUMN:
+        return (
+            "For rename_column: target_columns must contain exactly one real "
+            "ColumnRef and new_column_name must contain the requested new name."
+        )
+    if action == Action.DROP_COLUMN:
+        return "For drop_column: target_columns must contain exactly one real ColumnRef."
+    if action == Action.DELETE_ROWS:
+        return "For delete_rows: filters must be non-empty."
+    if action == Action.DEDUPLICATE:
+        return "For deduplicate: deduplicate_columns must contain the real key columns."
+    if action == Action.CLEAR_VALUES:
+        return (
+            "For clear_values: use target_columns for column clearing OR "
+            "match_cell_value for exact-cell-content clearing."
+        )
+    return "Follow the exact conditional field requirements of ExcelOperationPlan."
 
 def _promote_complete_unresolved_plan(
     plan: ExcelOperationPlan,
@@ -365,31 +444,52 @@ class ExcelPlanner:
             think=False,
         )
         raw = response.message.content or ""
-        try:
-            parsed = ExcelOperationPlan.model_validate_json(raw)
-            parsed = _validate_against_catalog(parsed, intent, metadata)
-        except (ValidationError, ValueError) as error:
-            repair = await self._client.chat(
-                model=self._model,
-                messages=[
-                    *messages,
-                    {"role": "assistant", "content": raw},
-                    {
-                        "role": "user",
-                        "content": (
-                            "План не прошёл проверку: "
-                            f"{error}. Исправь только план. Не меняй action. "
-                            "Используй лишь реальные объекты excel_catalog и сохрани "
-                            "все фильтры/ключи из parsed_intent. Верни только JSON."
-                        ),
-                    },
-                ],
-                format=ExcelOperationPlan.model_json_schema(),
-                options={"temperature": 0},
-                think=False,
+        last_error: ValidationError | ValueError | None = None
+        parsed: ExcelOperationPlan | None = None
+        candidate_raw = raw
+
+        # Local structured-output models can occasionally satisfy the JSON schema
+        # while missing an action-specific invariant implemented by Pydantic
+        # validators (for example UPDATE with no assignments). Validate every
+        # candidate, repair safe structural aliases, then allow two bounded LLM
+        # corrections before surfacing a planning error.
+        for repair_attempt in range(3):
+            try:
+                parsed = _parse_and_validate_plan(candidate_raw, intent, metadata)
+                break
+            except (ValidationError, ValueError) as error:
+                last_error = error
+                if repair_attempt >= 2:
+                    break
+                contract = _action_shape_contract(intent.action)
+                repair = await self._client.chat(
+                    model=self._model,
+                    messages=[
+                        *messages,
+                        {"role": "assistant", "content": candidate_raw},
+                        {
+                            "role": "user",
+                            "content": (
+                                f"Plan validation failed: {error}. "
+                                "Перестрой только ЭТУ data-задачу. Не меняй action и "
+                                "не теряй значения/условия из parsed_intent. Используй "
+                                "только реальные объекты excel_catalog. "
+                                f"Обязательный контракт действия: {contract} "
+                                "Верни полный ExcelOperationPlan JSON без текста вокруг."
+                            ),
+                        },
+                    ],
+                    format=ExcelOperationPlan.model_json_schema(),
+                    options={"temperature": 0},
+                    think=False,
+                )
+                candidate_raw = repair.message.content or ""
+
+        if parsed is None:
+            raise ValueError(
+                "LLM three times returned an invalid Excel plan for "
+                f"{intent.action.value}: {last_error}"
             )
-            parsed = ExcelOperationPlan.model_validate_json(repair.message.content or "")
-            parsed = _validate_against_catalog(parsed, intent, metadata)
 
         if parsed.resolved:
             return parsed
@@ -405,11 +505,11 @@ class ExcelPlanner:
                 {
                     "role": "user",
                     "content": (
-                        "Сделай best-effort повторно. Файл уже выбран. Если лист один — "
-                        "выбери его. Если по schema подходит один реальный столбец — "
-                        "выбери его. Пользователь всё равно увидит точный preview перед "
-                        "записью. resolved=false оставляй только при реальной "
-                        "неоднозначности/отсутствующем критичном значении. Только JSON."
+                        "Retry best-effort. The file is already selected. If there is one sheet, "
+                        "select it. If exactly one real column matches the schema, "
+                        "select it. The user will still see an exact preview before "
+                        "writing. Use resolved=false only for genuine "
+                        "ambiguity or a missing critical value. JSON only."
                     ),
                 },
             ],
@@ -417,5 +517,6 @@ class ExcelPlanner:
             options={"temperature": 0},
             think=False,
         )
-        final = ExcelOperationPlan.model_validate_json(forced.message.content or "")
-        return _validate_against_catalog(final, intent, metadata)
+        return _parse_and_validate_plan(
+            forced.message.content or "", intent, metadata
+        )

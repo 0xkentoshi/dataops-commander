@@ -88,7 +88,7 @@ class MergedCellWriteTests(unittest.TestCase):
                     )
                 ],
             )
-            with self.assertRaisesRegex(ValueError, "объединённый диапазон"):
+            with self.assertRaisesRegex(ValueError, "merged Excel range"):
                 build_operation_preview(path, plan, metadata)
 
 

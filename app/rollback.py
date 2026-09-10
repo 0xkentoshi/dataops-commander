@@ -40,9 +40,9 @@ def _verify_file(path: Path) -> None:
         finally:
             connection.close()
         if not result or str(result[0]).casefold() != "ok":
-            raise RuntimeError("SQLite snapshot не прошёл PRAGMA quick_check.")
+            raise RuntimeError("The SQLite snapshot failed PRAGMA quick_check.")
         return
-    raise ValueError(f"Undo пока поддерживает Excel и SQLite, получен {path.suffix or 'файл без расширения'}.")
+    raise ValueError(f"Undo currently supports Excel and SQLite; received {path.suffix or 'a file without an extension'}.")
 
 
 def restore_snapshot(
@@ -55,15 +55,15 @@ def restore_snapshot(
     source_path = source_path.resolve()
     snapshot_path = snapshot_path.resolve()
     if not source_path.is_file():
-        raise ValueError("Текущий файл больше не существует.")
+        raise ValueError("The current file no longer exists.")
     if not snapshot_path.is_file():
-        raise ValueError("Snapshot для отката больше не существует.")
+        raise ValueError("The rollback snapshot no longer exists.")
     if source_path.suffix.casefold() != snapshot_path.suffix.casefold():
-        raise ValueError("Snapshot имеет другой формат файла.")
+        raise ValueError("The snapshot has a different file format.")
     current_sha = sha256_file(source_path)
     if current_sha != expected_current_sha256:
         raise ValueError(
-            "Файл изменился после последней операции. Автоматический откат заблокирован, чтобы не потерять более новые изменения."
+            "The file changed after the latest operation. Automatic rollback is blocked to protect newer changes."
         )
 
     snapshots_root.mkdir(parents=True, exist_ok=True)

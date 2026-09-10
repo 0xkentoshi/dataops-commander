@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.0.1] - 2026-09-10
+
+### Changed
+
+- converted the Telegram/admin/runtime interface to English while preserving multilingual natural-language input
+- improved user-facing planning failures so internal Pydantic/validation traces stay in audit instead of Telegram
+- hardened Excel UPDATE structured-plan normalization
+- hardened filtered SQLite SELECT planning with catalog-bound filter recovery
+- hardened SQLite UPDATE planning with catalog-bound assignment recovery
+- added sequential recovery when a malformed SQL write loses both its filter and assignment
+- expanded the regression suite from 34 to 50 tests
+- added six autoplaying live demo GIFs to the README
+
+### Notes
+
+`v1.0.1` is the post-live-QA portfolio release. It keeps the same execution surface as v1.0.0 while improving interface consistency and planner resilience.
+
 ## [1.0.0] - 2026-09-10
 
 ### Added

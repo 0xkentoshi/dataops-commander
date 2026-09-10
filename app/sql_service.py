@@ -81,18 +81,18 @@ def _rowid_alias(connection: sqlite3.Connection, table_name: str, names: set[str
 
 def inspect_sqlite(database_path: Path, original_name: str) -> SqliteMetadata:
     if not database_path.is_file():
-        raise ValueError("SQLite-файл больше не существует.")
+        raise ValueError("The SQLite file no longer exists.")
     warnings: list[str] = []
     tables: list[SqlTableMetadata] = []
     try:
         connection = open_read_only(database_path)
     except sqlite3.DatabaseError as error:
-        raise ValueError(f"Файл не является читаемой SQLite-базой: {error}") from error
+        raise ValueError(f"The file is not a readable SQLite database: {error}") from error
 
     try:
         integrity = connection.execute("PRAGMA quick_check").fetchone()
         if integrity is None or integrity[0] != "ok":
-            raise ValueError(f"SQLite quick_check не пройден: {integrity}")
+            raise ValueError(f"SQLite quick_check failed: {integrity}")
         journal_row = connection.execute("PRAGMA journal_mode").fetchone()
         journal_mode = str(journal_row[0] if journal_row else "unknown")
         table_rows = connection.execute(
@@ -106,7 +106,7 @@ def inspect_sqlite(database_path: Path, original_name: str) -> SqliteMetadata:
             (MAX_TABLES + 1,),
         ).fetchall()
         if len(table_rows) > MAX_TABLES:
-            warnings.append(f"Показаны первые {MAX_TABLES} таблиц.")
+            warnings.append(f"Showing the first {MAX_TABLES} tables.")
 
         visible_table_names = [str(row["name"]) for row in table_rows[:MAX_TABLES]]
         inbound_foreign_keys = {name: 0 for name in visible_table_names}
@@ -132,8 +132,8 @@ def inspect_sqlite(database_path: Path, original_name: str) -> SqliteMetadata:
             visible_rows = [row for row in column_rows if int(row["hidden"]) == 0]
             if len(visible_rows) > MAX_COLUMNS_PER_TABLE:
                 warnings.append(
-                    f"Таблица «{table_name}»: показаны первые "
-                    f"{MAX_COLUMNS_PER_TABLE} столбцов."
+                    f"Table “{table_name}”: showing the first "
+                    f"{MAX_COLUMNS_PER_TABLE} columns."
                 )
             names = {str(row["name"]).casefold() for row in visible_rows}
             rowid_alias = _rowid_alias(connection, table_name, names)
@@ -183,12 +183,12 @@ def inspect_sqlite(database_path: Path, original_name: str) -> SqliteMetadata:
                 )
             )
     except sqlite3.DatabaseError as error:
-        raise ValueError(f"Ошибка чтения SQLite: {error}") from error
+        raise ValueError(f"SQLite read error: {error}") from error
     finally:
         connection.close()
 
     if not tables:
-        warnings.append("Пользовательские таблицы не найдены.")
+        warnings.append("No user tables found.")
     return SqliteMetadata(
         original_name=original_name,
         tables=tables,

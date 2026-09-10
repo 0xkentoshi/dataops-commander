@@ -4,13 +4,13 @@
 
 ### AI agent for safe natural-language operations on Excel and SQLite
 
-![Version](https://img.shields.io/badge/version-1.0.0-111111)
+![Version](https://img.shields.io/badge/version-1.0.1-111111)
 ![Python](https://img.shields.io/badge/Python-3.14-3776AB?logo=python&logoColor=white)
 ![Telegram](https://img.shields.io/badge/Telegram-aiogram-26A5E4?logo=telegram&logoColor=white)
 ![LLM](https://img.shields.io/badge/LLM-Ollama-black)
 ![Excel](https://img.shields.io/badge/Excel-openpyxl-217346)
 ![SQLite](https://img.shields.io/badge/SQLite-supported-003B57?logo=sqlite&logoColor=white)
-![Tests](https://img.shields.io/badge/regression_tests-34-success)
+![Tests](https://img.shields.io/badge/regression_tests-50-success)
 
 **Natural language → structured plan → human approval → verified data change**
 
@@ -301,7 +301,7 @@ The selected source becomes the default context for subsequent natural-language 
 | JSON / text / `.sql` files | ✅ | Catalog only | — |
 | Google Sheets | Roadmap | Roadmap | Roadmap |
 
-The public `v1.0.0` portfolio release focuses on Excel and SQLite.
+The public `v1.0.1` portfolio release focuses on Excel and SQLite.
 
 ---
 
@@ -416,7 +416,7 @@ undo the last change
 
 ## Testing
 
-The public repository contains **34 automated regression tests**.
+The public repository contains **50 automated regression tests**.
 
 They cover:
 
@@ -516,9 +516,9 @@ These boundaries are deliberate safety constraints, not hidden capabilities.
 
 ## Version
 
-**DataOps Commander v1.0.0 — Portfolio Release**
+**DataOps Commander v1.0.1 — Portfolio Release**
 
-The current release is the stable portfolio baseline for Excel + SQLite data operations.
+The current release is the stable portfolio baseline for Excel + SQLite data operations, including the English UI and planner-recovery hardening validated during live QA.
 
 See [`CHANGELOG.md`](CHANGELOG.md).
 

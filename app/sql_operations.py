@@ -65,7 +65,7 @@ class SqlExecutionOutcome:
 def _table(metadata: SqliteMetadata, name: str) -> SqlTableMetadata:
     result = next((item for item in metadata.tables if item.name == name), None)
     if result is None:
-        raise ValueError(f"Таблица «{name}» отсутствует в схеме.")
+        raise ValueError(f"Table “{name}” is not present in the schema.")
     return result
 
 
@@ -131,7 +131,7 @@ def _where(filters: list[SqlFilterCondition]) -> tuple[str, list[Any]]:
             clauses.append(f"date({column}) < date('now', ?)")
             parameters.append(f"-{int(float(condition.value))} days")
         else:
-            raise ValueError(f"SQL-фильтр {operator.value} не поддерживается.")
+            raise ValueError(f"SQL filter {operator.value} is not supported.")
     return (" AND ".join(clauses) if clauses else "1 = 1"), parameters
 
 
@@ -163,22 +163,22 @@ def _collect(
     metadata: SqliteMetadata,
 ) -> SqlOperationPreview:
     if not plan.resolved or not plan.table_name:
-        raise ValueError("Нельзя строить SQL preview для нерешённого плана.")
+        raise ValueError("Cannot build an SQL preview for an unresolved plan.")
     table = _table(metadata, plan.table_name)
     if not table.supports_rowid or not table.rowid_alias:
-        raise ValueError("Таблица WITHOUT ROWID пока доступна только для просмотра схемы.")
+        raise ValueError("WITHOUT ROWID tables are currently available for schema inspection only.")
     if plan.action in SQL_WRITE_ACTIONS and table.trigger_count:
-        raise ValueError("Запись заблокирована: у таблицы есть SQL-триггеры.")
+        raise ValueError("Write blocked: the table has SQL triggers.")
     if plan.action in SQL_WRITE_ACTIONS and (
         table.foreign_key_count or table.referenced_by_foreign_keys
     ):
-        raise ValueError("Запись заблокирована: у таблицы есть внешние ключи.")
+        raise ValueError("Write blocked: the table has foreign keys.")
     if plan.action == Action.UPDATE_ROWS:
         primary_keys = {
             column.name for column in table.columns if column.primary_key_position > 0
         }
         if any(item.column.name in primary_keys for item in plan.assignments):
-            raise ValueError("Изменение PRIMARY KEY заблокировано safety guard.")
+            raise ValueError("PRIMARY KEY changes are blocked by the safety guard.")
 
     quoted_table = quote_identifier(table.name)
     where_sql, parameters = _where(plan.filters)
@@ -189,7 +189,7 @@ def _collect(
     )
     if plan.action in SQL_WRITE_ACTIONS and matched_rows > MAX_MUTATED_ROWS:
         raise ValueError(
-            f"Операция затрагивает {matched_rows} строк; лимит — {MAX_MUTATED_ROWS}."
+            f"The operation affects {matched_rows} rows; the limit is {MAX_MUTATED_ROWS}."
         )
 
     all_names = [item.name for item in table.columns]
@@ -228,7 +228,7 @@ def _collect(
 
     if plan.action == Action.SELECT:
         affected_cells = 0
-        summary = f"Найдено строк: {matched_rows}. База не изменяется."
+        summary = f"Rows found: {matched_rows}. The database will not be modified."
     elif plan.action == Action.UPDATE_ROWS:
         affected_cells = sum(
             not _equivalent(
@@ -238,12 +238,12 @@ def _collect(
             for row in target_rows
             for assignment in plan.assignments
         )
-        summary = f"Обновить строк: {matched_rows}."
+        summary = f"Rows to update: {matched_rows}."
     elif plan.action == Action.DELETE_ROWS:
         affected_cells = matched_rows * max(len(table.columns), 1)
-        summary = f"Удалить строк: {matched_rows}."
+        summary = f"Rows to delete: {matched_rows}."
     else:
-        raise ValueError(f"SQL-действие {plan.action.value} не поддерживается.")
+        raise ValueError(f"SQL action {plan.action.value} is not supported.")
     return SqlOperationPreview(
         action=plan.action,
         table_name=table.name,
@@ -287,7 +287,7 @@ def _backup_database(source_path: Path, snapshot_path: Path) -> None:
         source.backup(destination)
         check = destination.execute("PRAGMA integrity_check").fetchone()
         if check is None or check[0] != "ok":
-            raise RuntimeError(f"Snapshot SQLite повреждён: {check}")
+            raise RuntimeError(f"The SQLite snapshot is corrupted: {check}")
     finally:
         destination.close()
         source.close()
@@ -317,7 +317,7 @@ def execute_sql_operation(
     snapshots_root: Path = Path("data/snapshots/sqlite"),
 ) -> SqlExecutionOutcome:
     if plan.action not in SQL_WRITE_ACTIONS:
-        raise ValueError("Read-only SQL не требует транзакции записи.")
+        raise ValueError("Read-only SQL does not require a write transaction.")
     snapshot_path = _snapshot_path(database_path, operation_id, snapshots_root)
     _backup_database(database_path, snapshot_path)
     table = _table(metadata, plan.table_name or "")
@@ -335,7 +335,7 @@ def execute_sql_operation(
             or fresh.target_signature != preview.target_signature
             or fresh.affected_cells != preview.affected_cells
         ):
-            raise ValueError("Данные изменились после preview. Создайте план заново.")
+            raise ValueError("The data changed after the preview. Build the plan again.")
 
         rowids = preview.target_rowids
         changed_rows = len(rowids)
@@ -371,9 +371,9 @@ def execute_sql_operation(
                 ).fetchone()[0]
             )
         if plan.action == Action.DELETE_ROWS and remaining != 0:
-            raise RuntimeError("Проверка DELETE не пройдена.")
+            raise RuntimeError("DELETE verification failed.")
         if plan.action == Action.UPDATE_ROWS and remaining != len(rowids):
-            raise RuntimeError("Проверка UPDATE не пройдена: строки исчезли.")
+            raise RuntimeError("UPDATE verification failed: rows disappeared.")
         if plan.action == Action.UPDATE_ROWS:
             assignment_names = [item.column.name for item in plan.assignments]
             assignment_sql = ", ".join(
@@ -394,10 +394,10 @@ def execute_sql_operation(
                     )
                     for row in rows
                 ):
-                    raise RuntimeError("Проверка новых значений UPDATE не пройдена.")
+                    raise RuntimeError("Verification of the new UPDATE values failed.")
         check = connection.execute("PRAGMA quick_check").fetchone()
         if check is None or check[0] != "ok":
-            raise RuntimeError(f"SQLite quick_check не пройден: {check}")
+            raise RuntimeError(f"SQLite quick_check failed: {check}")
         connection.commit()
         committed = True
     except Exception:

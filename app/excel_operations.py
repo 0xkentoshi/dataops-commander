@@ -108,7 +108,7 @@ def _empty(value: Any) -> bool:
 
 def _display(value: Any) -> str:
     if value is None:
-        return "<пусто>"
+        return "<empty>"
     if isinstance(value, datetime):
         return value.isoformat(sep=" ", timespec="seconds")
     if isinstance(value, (date, time)):
@@ -244,7 +244,7 @@ def _coerce_write(value: CellValue, current: Any) -> CellValue | date | datetime
 def _sheet_metadata(metadata: WorkbookMetadata, sheet_name: str) -> SheetMetadata:
     result = next((sheet for sheet in metadata.sheets if sheet.name == sheet_name), None)
     if result is None:
-        raise ValueError(f"Лист «{sheet_name}» отсутствует в схеме.")
+        raise ValueError(f"Sheet “{sheet_name}” is not present in the schema.")
     return result
 
 
@@ -340,7 +340,7 @@ def _preview_rows(
             if plan.action == Action.UPDATE_ROWS and ref.index in assignments:
                 after = _display(_coerce_write(assignments[ref.index], value))
             elif plan.action == Action.CLEAR_VALUES and ref.index in targets:
-                after = "<пусто>"
+                after = "<empty>"
             cells.append(
                 PreviewCell(
                     column_header=ref.header,
@@ -357,13 +357,13 @@ def _structural_guard(worksheet: Any, action: Action) -> None:
         return
     if worksheet.tables:
         raise ValueError(
-            "На листе есть формальная Excel Table. Структурное изменение "
-            "заблокировано, пока не подключено обновление её диапазона."
+            "The sheet contains a formal Excel Table. Structural changes are "
+            "blocked until its table range can be updated safely."
         )
     if getattr(worksheet, "_charts", None) or getattr(worksheet, "_images", None):
         raise ValueError(
-            "На листе есть диаграммы или изображения. Структурное изменение "
-            "заблокировано, чтобы не повредить их привязки."
+            "The sheet contains charts or images. Structural changes are "
+            "blocked to avoid damaging their references."
         )
 
 
@@ -398,8 +398,8 @@ def _replace_all_preview(
     targets = _non_empty_workbook_cells(workbook)
     if len(targets) > MAX_MUTATED_CELLS:
         raise ValueError(
-            f"В книге {len(targets)} заполненных ячеек — лимит операции "
-            f"равен {MAX_MUTATED_CELLS}."
+            f"The workbook contains {len(targets)} filled cells; the operation limit is "
+            f"{MAX_MUTATED_CELLS}."
         )
 
     affected = sum(
@@ -447,7 +447,7 @@ def _matching_cell_addresses(worksheet: Any, value: CellValue) -> list[str]:
     """Ищет точные логические совпадения по всему используемому листу.
 
     Поиск включает строку заголовков: команда вида «удали ячейку, где
-    написано Цена» должна уметь очистить сам заголовок, а не удалить строку.
+    написано Цена» должна уметь clear сам заголовок, а не удалить строку.
     """
     expected = _normalized(value)
     result: list[str] = []
@@ -461,8 +461,8 @@ def _matching_cell_addresses(worksheet: Any, value: CellValue) -> list[str]:
                 result.append(cell.coordinate)
                 if len(result) > MAX_MUTATED_CELLS:
                     raise ValueError(
-                        f"Найдено больше {MAX_MUTATED_CELLS} подходящих ячеек — "
-                        "уточните условие."
+                        f"More than {MAX_MUTATED_CELLS} matching cells were found — "
+                        "narrow the condition."
                     )
     return result
 
@@ -479,7 +479,7 @@ def _matching_cells_preview(worksheet: Any, addresses: list[str]) -> list[Previe
                     PreviewCell(
                         column_header=cell.coordinate,
                         before=_display(cell.value),
-                        after="<пусто>",
+                        after="<empty>",
                     )
                 ],
             )
@@ -494,20 +494,20 @@ def build_operation_preview(
     if not plan.resolved or (
         plan.action != Action.REPLACE_ALL_VALUES and plan.sheet_name is None
     ):
-        raise ValueError("Нельзя строить preview для нерешённого плана.")
+        raise ValueError("Cannot build a preview for an unresolved plan.")
     is_write = plan.action in WRITE_ACTIONS
     if is_write and metadata.total_formula_cells > 0:
         raise ValueError(
-            "В книге есть формулы. Изменение заблокировано до подключения "
-            "проверки зависимостей формул."
+            "The workbook contains formulas. Writes are blocked until formula "
+            "dependency checks are available."
         )
     source_hash = _sha256(file_path)
     workbook = load_workbook(file_path, read_only=False, data_only=False)
     try:
         if is_write and _workbook_has_formulas(workbook):
             raise ValueError(
-                "В книге обнаружены формулы. Изменение заблокировано до "
-                "подключения проверки их зависимостей."
+                "Formulas were detected in the workbook. Writes are blocked until "
+                "dependency checks are available."
             )
         if plan.action == Action.REPLACE_ALL_VALUES:
             total, matched_rows, affected, preview_rows = _replace_all_preview(
@@ -516,7 +516,7 @@ def build_operation_preview(
             )
             return ExcelOperationPreview(
                 action=plan.action,
-                sheet_name=f"Вся книга ({len(workbook.worksheets)} листов)",
+                sheet_name=f"Entire workbook ({len(workbook.worksheets)} sheets)",
                 is_write=True,
                 has_changes=affected > 0,
                 matched_rows=matched_rows,
@@ -524,9 +524,9 @@ def build_operation_preview(
                 matched_row_numbers=[],
                 rows=preview_rows,
                 summary=(
-                    f"Заменить все {total} заполненных ячеек во всей книге "
-                    f"на «{_display(plan.replacement_value)}». "
-                    f"Реально изменится: {affected}."
+                    f"Replace all {total} filled cells in the workbook "
+                    f"with “{_display(plan.replacement_value)}”. "
+                    f"Cells that will actually change: {affected}."
                 ),
                 source_sha256=source_hash,
             )
@@ -538,8 +538,8 @@ def build_operation_preview(
             if not plan.match_all_cells and len(addresses) > 1:
                 sample = ", ".join(addresses[:6])
                 raise ValueError(
-                    f"Найдено {len(addresses)} ячеек со значением «{_display(plan.match_cell_value)}» "
-                    f"({sample}). Уточните место или скажите «очисти все ячейки со значением …»."
+                    f"Found {len(addresses)} cells with value “{_display(plan.match_cell_value)}” "
+                    f"({sample}). Narrow the location or explicitly request clearing all matching cells."
                 )
             affected = len(addresses)
             matched_rows = sorted({worksheet[address].row for address in addresses})
@@ -554,8 +554,8 @@ def build_operation_preview(
                 matched_cell_addresses=addresses,
                 rows=_matching_cells_preview(worksheet, addresses),
                 summary=(
-                    f"Очистить ячеек со значением «{_display(plan.match_cell_value)}»: "
-                    f"{affected}. Строки и столбцы сохранятся."
+                    f"Clear cells with value “{_display(plan.match_cell_value)}”: "
+                    f"{affected}. Rows and columns will be preserved."
                 ),
                 source_sha256=source_hash,
             )
@@ -570,38 +570,38 @@ def build_operation_preview(
                 matched,
                 plan.deduplicate_columns,
             )
-            summary = f"Найдено повторных строк для удаления: {len(matched)}."
+            summary = f"Duplicate rows to remove: {len(matched)}."
         elif plan.action == Action.SELECT:
-            summary = f"Найдено строк: {len(matched)}. Файл не изменяется."
+            summary = f"Rows found: {len(matched)}. The file will not be modified."
         elif plan.action == Action.RENAME_COLUMN:
             target = plan.target_columns[0]
-            summary = f"Переименовать «{target.header}» в «{plan.new_column_name}»."
+            summary = f"Rename “{target.header}” to “{plan.new_column_name}»."
         elif plan.action == Action.ADD_COLUMN:
             fill_note = (
-                f" и заполнить значением «{_display(plan.new_column_default)}»"
+                f" and fill with “{_display(plan.new_column_default)}»"
                 if plan.fill_new_column
-                else " без заполнения"
+                else " without filling"
             )
-            summary = f"Добавить столбец «{plan.new_column_name}»{fill_note}."
+            summary = f"Add column “{plan.new_column_name}»{fill_note}."
         elif plan.action == Action.DROP_COLUMN:
             target = plan.target_columns[0]
             if len(sheet.columns) <= 1:
-                raise ValueError("Нельзя удалить единственный столбец таблицы.")
-            summary = f"Полностью удалить столбец «{target.header}»."
+                raise ValueError("Cannot drop the only column in the table.")
+            summary = f"Drop column “{target.header}»."
         elif plan.action == Action.UPDATE_ROWS:
-            summary = f"Обновить строк: {len(matched)}."
+            summary = f"Rows to update: {len(matched)}."
         elif plan.action == Action.DELETE_ROWS:
-            summary = f"Удалить строк: {len(matched)}."
+            summary = f"Rows to delete: {len(matched)}."
         elif plan.action == Action.CLEAR_VALUES:
             names = ", ".join(item.header for item in plan.target_columns)
-            summary = f"Очистить столбцы {names} в строках: {len(matched)}."
+            summary = f"Clear columns {names} in rows: {len(matched)}."
         else:
-            raise ValueError(f"Действие {plan.action.value} не поддерживается.")
+            raise ValueError(f"Action {plan.action.value} is not supported.")
 
         if is_write and len(matched) > MAX_MUTATED_ROWS:
             raise ValueError(
-                f"Операция затрагивает {len(matched)} строк — лимит "
-                f"MVP равен {MAX_MUTATED_ROWS}."
+                f"The operation affects {len(matched)} rows; the MVP limit is "
+                f"{MAX_MUTATED_ROWS}."
             )
 
         if plan.action in {Action.RENAME_COLUMN, Action.ADD_COLUMN, Action.DROP_COLUMN}:
@@ -624,7 +624,7 @@ def build_operation_preview(
                 for assignment in plan.assignments:
                     cell = worksheet.cell(row, assignment.column.index)
                     if isinstance(cell, MergedCell):
-                        raise _merged_write_error(cell, "изменить")
+                        raise _merged_write_error(cell, "modify")
             affected = sum(
                 worksheet.cell(row, assignment.column.index).value
                 != _coerce_write(
@@ -654,7 +654,7 @@ def build_operation_preview(
         elif plan.action == Action.RENAME_COLUMN:
             header_cell = worksheet.cell(sheet.header_row, plan.target_columns[0].index)
             if isinstance(header_cell, MergedCell):
-                raise _merged_write_error(header_cell, "переименовать")
+                raise _merged_write_error(header_cell, "rename")
             affected = 1
         else:
             affected = 0
@@ -687,8 +687,8 @@ def _copy_cell_style(source: Any, target: Any) -> None:
 
 def _merged_write_error(cell: Any, action: str) -> ValueError:
     return ValueError(
-        f"Нельзя {action} ячейку {cell.coordinate}: она входит в объединённый диапазон Excel. "
-        "Разъедините этот диапазон или уточните другую ячейку/строку."
+        f"Cannot {action} cell {cell.coordinate}: it belongs to a merged Excel range. "
+        "Unmerge the range or target a different cell/row."
     )
 
 
@@ -697,7 +697,7 @@ def _set_regular_cell_value(cell: Any, value: Any, *, action: str, skip_merged_w
 
     Неякорные ячейки объединённого диапазона являются read-only proxy.
     Для CLEAR их можно пропустить, если у proxy и так нет собственного значения.
-    Для записей, которые должны создать/изменить значение, операция блокируется
+    Для записей, которые должны создать/modify значение, операция блокируется
     до сохранения временной копии вместо падения AttributeError после preview.
     """
     if isinstance(cell, MergedCell):
@@ -720,7 +720,7 @@ def _apply_plan(
         _set_regular_cell_value(
             worksheet.cell(sheet.header_row, target.index),
             plan.new_column_name,
-            action="переименовать",
+            action="rename",
         )
         return
     if plan.action == Action.ADD_COLUMN:
@@ -763,7 +763,7 @@ def _apply_plan(
             for assignment in plan.assignments:
                 cell = worksheet.cell(row_number, assignment.column.index)
                 value = _coerce_write(assignment.value, getattr(cell, "value", None))
-                _set_regular_cell_value(cell, value, action="изменить")
+                _set_regular_cell_value(cell, value, action="modify")
         return
     if plan.action == Action.CLEAR_VALUES:
         if plan.match_cell_value is not None:
@@ -772,7 +772,7 @@ def _apply_plan(
                 _set_regular_cell_value(
                     cell,
                     None,
-                    action="очистить",
+                    action="clear",
                     skip_merged_when_empty=True,
                 )
             return
@@ -782,7 +782,7 @@ def _apply_plan(
                 _set_regular_cell_value(
                     cell,
                     None,
-                    action="очистить",
+                    action="clear",
                     skip_merged_when_empty=True,
                 )
         return
@@ -800,7 +800,7 @@ def _apply_plan(
         for row_number in sorted(rows, reverse=True):
             worksheet.delete_rows(row_number, 1)
         return
-    raise ValueError(f"Нельзя выполнить действие {plan.action.value}.")
+    raise ValueError(f"Cannot execute action {plan.action.value}.")
 
 
 def _safe_value(value: Any) -> Any:
@@ -853,7 +853,7 @@ def _verify_saved_result(
 ) -> bool:
     """Проверяет смысл операции после save/reload.
 
-    Нельзя сравнивать digest книги *до* save с digest после повторного открытия:
+    Cannot сравнивать digest книги *до* save с digest после повторного открытия:
     openpyxl при сериализации законно нормализует dimensions/metadata, поэтому
     корректный XLSX иногда выглядел как повреждённый. Здесь проверяем сам
     результат операции, а эталонный digest берём уже из сериализованной копии.
@@ -945,10 +945,10 @@ def execute_operation(
     snapshots_root: Path = Path("data/snapshots/excel"),
 ) -> ExcelExecutionOutcome:
     if plan.action not in WRITE_ACTIONS:
-        raise ValueError("Read-only операция не требует записи.")
+        raise ValueError("A read-only operation does not require a write.")
     if _sha256(source_path) != preview.source_sha256:
         raise ValueError(
-            "Исходный файл изменился после preview. Создайте план заново."
+            "The source file changed after the preview. Build the plan again."
         )
     fresh_preview = build_operation_preview(source_path, plan, metadata)
     if (
@@ -957,7 +957,7 @@ def execute_operation(
         or fresh_preview.matched_rows != preview.matched_rows
         or fresh_preview.affected_cells != preview.affected_cells
     ):
-        raise ValueError("Набор изменяемых данных изменился после preview.")
+        raise ValueError("The target data changed after the preview.")
 
     snapshots_root.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
@@ -977,7 +977,7 @@ def execute_operation(
     )
     shutil.copy2(source_path, snapshot_path)
     if _sha256(snapshot_path) != preview.source_sha256:
-        raise RuntimeError("Snapshot Excel не совпал с исходником.")
+        raise RuntimeError("The Excel snapshot does not match the source file.")
     shutil.copy2(source_path, temporary_path)
 
     sheet = (
@@ -1025,12 +1025,12 @@ def execute_operation(
 
     if not result_verified:
         raise RuntimeError(
-            "Проверка рабочей копии Excel не пройдена до записи в источник."
+            "Excel working-copy verification failed before writing to the source."
         )
     if _sha256(source_path) != preview.source_sha256:
         raise ValueError(
-            "Исходный файл изменился непосредственно перед записью. "
-            "Создайте план заново."
+            "The source file changed immediately before the write. "
+            "Build the plan again."
         )
 
     replaced = False
@@ -1043,7 +1043,7 @@ def execute_operation(
         finally:
             final_workbook.close()
         if not final_verified:
-            raise RuntimeError("Финальная проверка Excel после записи не пройдена.")
+            raise RuntimeError("Final Excel verification failed after the write.")
     except Exception as error:
         if replaced:
             try:
@@ -1051,8 +1051,8 @@ def execute_operation(
                 os.replace(restore_path, source_path)
             except Exception as restore_error:
                 raise RuntimeError(
-                    "Excel изменён, проверка не прошла, автоматическое "
-                    f"восстановление также не удалось: {restore_error}"
+                    "Excel was modified, verification failed, and automatic "
+                    f"restore also failed: {restore_error}"
                 ) from error
         raise
     finally:

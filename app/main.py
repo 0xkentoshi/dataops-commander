@@ -138,63 +138,71 @@ PendingOperation: TypeAlias = SinglePendingOperation | PendingBatchOperation
 
 
 ACTION_LABELS = {
-    Action.OPEN_SOURCE: "выбрать источник",
-    Action.SELECT: "показать подходящие строки",
-    Action.ADD_COLUMN: "добавить столбец",
-    Action.RENAME_COLUMN: "переименовать столбец",
-    Action.DROP_COLUMN: "удалить столбец",
-    Action.UPDATE_ROWS: "обновить строки",
-    Action.REPLACE_ALL_VALUES: "заменить все заполненные ячейки",
-    Action.DELETE_ROWS: "удалить строки",
-    Action.CLEAR_VALUES: "очистить значения",
-    Action.DEDUPLICATE: "удалить дубли",
+    Action.OPEN_SOURCE: "select source",
+    Action.SELECT: "show matching rows",
+    Action.ADD_COLUMN: "add column",
+    Action.RENAME_COLUMN: "rename column",
+    Action.DROP_COLUMN: "drop column",
+    Action.UPDATE_ROWS: "update rows",
+    Action.REPLACE_ALL_VALUES: "replace all filled cells",
+    Action.DELETE_ROWS: "delete rows",
+    Action.CLEAR_VALUES: "clear values",
+    Action.DEDUPLICATE: "remove duplicates",
 }
 
 STATUS_LABELS = {
-    "received": "🧠 Анализируется",
-    "planned": "🟡 Ждёт подтверждения",
-    "previewed": "👁 Просмотрено",
-    "executing": "🔵 Выполняется",
-    "completed": "✅ Выполнено",
-    "cancelled": "❌ Отменено",
-    "expired": "⌛ Истекло",
-    "needs_clarification": "❓ Нужно уточнение",
-    "rejected": "⛔ Отклонено",
-    "failed": "⚠️ Ошибка",
-    "undone": "↩️ Откачено",
+    "received": "🧠 Analyzing",
+    "planned": "🟡 Awaiting confirmation",
+    "previewed": "👁 Previewed",
+    "executing": "🔵 Executing",
+    "completed": "✅ Completed",
+    "cancelled": "❌ Cancelled",
+    "expired": "⌛ Expired",
+    "needs_clarification": "❓ Needs clarification",
+    "rejected": "⛔ Rejected",
+    "failed": "⚠️ Failed",
+    "undone": "↩️ Undone",
 }
 
 EVENT_LABELS = {
-    "request_received": "Команда получена",
-    "intent_parsed": "Намерение распознано",
-    "plan_created": "Точный план создан",
-    "preview_shown": "Preview показан",
-    "confirmation_received": "Подтверждение получено",
-    "snapshot_created": "Snapshot создан",
-    "change_applied": "Изменение применено",
-    "verification_passed": "Результат проверен",
-    "source_updated": "Источник обновлён на месте",
-    "result_sent": "Результат отправлен в Telegram (старая версия)",
-    "active_source_selected": "Источник выбран активным",
-    "active_source_cleared": "Активный источник сброшен",
-    "operation_completed": "Операция завершена",
-    "read_completed": "Чтение данных завершено",
-    "no_changes_found": "Изменяемые данные не найдены",
-    "operation_cancelled": "Операция отменена",
-    "operation_replaced": "Заменена новой командой",
-    "confirmation_expired": "Время подтверждения истекло",
-    "operation_rejected": "Операция заблокирована",
-    "clarification_required": "Потребовалось уточнение",
-    "planning_failed": "Подготовка плана завершилась ошибкой",
-    "execution_failed": "Выполнение завершилось ошибкой",
-    "execution_interrupted": "Выполнение прервано перезапуском",
-    "operation_undone": "Изменение отменено через snapshot",
-    "rollback_completed": "Откат завершён",
+    "request_received": "Request received",
+    "intent_parsed": "Intent parsed",
+    "plan_created": "Structured plan created",
+    "preview_shown": "Preview shown",
+    "confirmation_received": "Confirmation received",
+    "snapshot_created": "Snapshot created",
+    "change_applied": "Change applied",
+    "verification_passed": "Result verified",
+    "source_updated": "Source updated in place",
+    "result_sent": "Result sent to Telegram (legacy event)",
+    "active_source_selected": "Source selected as active",
+    "active_source_cleared": "Active source cleared",
+    "operation_completed": "Operation completed",
+    "read_completed": "Read completed",
+    "no_changes_found": "No matching changes found",
+    "operation_cancelled": "Operation cancelled",
+    "operation_replaced": "Replaced by a new request",
+    "confirmation_expired": "Confirmation window expired",
+    "operation_rejected": "Operation blocked",
+    "clarification_required": "Clarification required",
+    "planning_failed": "Planning failed",
+    "execution_failed": "Execution failed",
+    "execution_interrupted": "Execution interrupted by restart",
+    "operation_undone": "Change reverted from snapshot",
+    "rollback_completed": "Rollback completed",
 }
 
 
 def esc(value: object) -> str:
     return html.escape(str(value))
+
+
+def planning_failure_text() -> str:
+    return (
+        "<b>Could not prepare a safe plan</b>\n"
+        "The AI response did not pass validation. No data was changed. "
+        "Please try the request again."
+    )
 
 
 def allowed(user_id: int) -> bool:
@@ -212,11 +220,11 @@ def format_utc(value: datetime) -> str:
 
 def human_size(size: int) -> str:
     value = float(size)
-    for unit in ("Б", "КБ", "МБ", "ГБ"):
-        if value < 1024 or unit == "ГБ":
-            return f"{value:.0f} {unit}" if unit == "Б" else f"{value:.1f} {unit}"
+    for unit in ("B", "KB", "MB", "GB"):
+        if value < 1024 or unit == "GB":
+            return f"{value:.0f} {unit}" if unit == "B" else f"{value:.1f} {unit}"
         value /= 1024
-    return f"{size} Б"
+    return f"{size} B"
 
 
 def _lock_for(path: Path) -> asyncio.Lock:
@@ -231,9 +239,9 @@ def _lock_for(path: Path) -> asyncio.Lock:
 def main_menu_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="📂 Открыть файлы", callback_data="files:page:0")],
+            [InlineKeyboardButton(text="📂 Open files", callback_data="files:page:0")],
             [
-                InlineKeyboardButton(text="🧾 История", callback_data="menu:history"),
+                InlineKeyboardButton(text="🧾 History", callback_data="menu:history"),
                 InlineKeyboardButton(text="🩺 Health", callback_data="menu:health"),
             ],
         ]
@@ -245,7 +253,7 @@ def onboarding_keyboard() -> InlineKeyboardMarkup:
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="✅ Понятно, начать",
+                    text="✅ Got it, start",
                     callback_data="onboarding:accept",
                 )
             ]
@@ -256,21 +264,21 @@ def onboarding_keyboard() -> InlineKeyboardMarkup:
 def onboarding_text() -> str:
     return (
         "<b>DataOps Commander</b>\n"
-        "Excel + SQLite · управление данными обычным языком.\n\n"
-        "<b>Как работает</b>\n"
-        "• Можно отправлять одну или несколько задач одним сообщением.\n"
-        "• Чтение выполняется сразу; изменения сначала показываются планом.\n"
-        "• Запись выполняется только после вашего подтверждения.\n"
-        "• Перед изменением создаётся snapshot исходника; последнее изменение можно вернуть кнопкой или фразой «верни как было».\n\n"
-        "<b>Важно</b>\n"
-        "• Проверяйте план перед подтверждением: естественный язык может быть "
-        "интерпретирован не так, как вы ожидали.\n"
-        "• Неоднозначные или неподдерживаемые действия бот попросит уточнить "
-        "или отклонит.\n"
-        "• Один batch работает с одним источником; задачи внутри него "
-        "выполняются по порядку.\n\n"
-        "Техническая история доступна через /history и /audit. "
-        "Эти подсказки больше не будут повторяться в рабочем интерфейсе."
+        "Excel + SQLite · manage data with natural language.\n\n"
+        "<b>How it works</b>\n"
+        "• Send one or multiple tasks in a single message.\n"
+        "• Read operations run immediately; write operations are shown as a plan first.\n"
+        "• Writes run only after your explicit confirmation.\n"
+        "• A source snapshot is created before a write; the latest change can be reverted with Undo or a natural-language request.\n\n"
+        "<b>Important</b>\n"
+        "• Review the plan before confirming: natural language can be "
+        "interpreted differently than expected.\n"
+        "• Ambiguous or unsupported actions will require clarification "
+        "or will be rejected.\n"
+        "• One batch operates on one source; tasks inside the batch "
+        "run sequentially.\n\n"
+        "Technical history is available through /history and /audit. "
+        "These onboarding notes will not be repeated in the working interface."
     )
 
 
@@ -282,7 +290,7 @@ async def require_onboarding_message(message: Message, user_id: int) -> bool:
     if onboarding_accepted(user_id):
         return True
     await message.answer(
-        "Сначала отправьте /start и подтвердите правила запуска."
+        "Send /start first and accept the startup rules."
     )
     return False
 
@@ -291,7 +299,7 @@ async def require_onboarding_callback(callback: CallbackQuery) -> bool:
     if onboarding_accepted(callback.from_user.id):
         return True
     await callback.answer(
-        "Сначала отправьте /start и подтвердите правила запуска.",
+        "Send /start first and accept the startup rules.",
         show_alert=True,
     )
     return False
@@ -302,17 +310,17 @@ def operation_keyboard(operation_id: str) -> InlineKeyboardMarkup:
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="👁 Показать данные",
+                    text="👁 Show data",
                     callback_data=f"op:preview:{operation_id}",
                 )
             ],
             [
                 InlineKeyboardButton(
-                    text="✅ Подтвердить",
+                    text="✅ Confirm",
                     callback_data=f"op:confirm:{operation_id}",
                 ),
                 InlineKeyboardButton(
-                    text="❌ Отменить",
+                    text="❌ Cancel",
                     callback_data=f"op:cancel:{operation_id}",
                 ),
             ],
@@ -359,7 +367,7 @@ def files_keyboard(
     rows.append(
         [
             InlineKeyboardButton(
-                text="🔄 Обновить список",
+                text="🔄 Refresh list",
                 callback_data=f"files:refresh:{safe_page}",
             )
         ]
@@ -370,8 +378,8 @@ def files_keyboard(
 def back_to_files_keyboard(page: int = 0) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="⬅️ К списку", callback_data=f"files:page:{page}")],
-            [InlineKeyboardButton(text="🔄 Обновить", callback_data=f"files:refresh:{page}")],
+            [InlineKeyboardButton(text="⬅️ Back to list", callback_data=f"files:page:{page}")],
+            [InlineKeyboardButton(text="🔄 Refresh", callback_data=f"files:refresh:{page}")],
         ]
     )
 
@@ -381,17 +389,17 @@ def completed_operation_keyboard(operation_id: str, page: int = 0) -> InlineKeyb
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="📤 Скачать файл",
+                    text="📤 Download file",
                     callback_data=f"sendfile:{operation_id}",
                 )
             ],
             [
                 InlineKeyboardButton(
-                    text="↩️ Отменить изменения",
+                    text="↩️ Undo changes",
                     callback_data=f"undo:{operation_id}",
                 )
             ],
-            [InlineKeyboardButton(text="⬅️ К списку", callback_data=f"files:page:{page}")],
+            [InlineKeyboardButton(text="⬅️ Back to list", callback_data=f"files:page:{page}")],
         ]
     )
 
@@ -438,7 +446,7 @@ def _unique_output_path(
         candidate = directory / f"{stem} ({index}){suffix}"
         if not candidate.exists():
             return candidate.resolve()
-    raise FileExistsError("Не удалось подобрать свободное имя итогового файла.")
+    raise FileExistsError("Could not allocate a unique output filename.")
 
 
 def _copy_target_path(source: DataSource, options: ExecutionOptions) -> Path:
@@ -454,7 +462,7 @@ def _copy_target_path(source: DataSource, options: ExecutionOptions) -> Path:
 def _rename_target_path(source_path: Path, requested_name: str) -> Path:
     filename = normalized_output_filename(requested_name, source_path)
     if not filename:
-        raise ValueError("Не получилось распознать новое имя файла.")
+        raise ValueError("Could not parse the new filename.")
     return _unique_output_path(
         source_path.parent, filename, source_path, allow_same=True
     )
@@ -483,7 +491,7 @@ def _rename_source_file(source_path: Path, target_path: Path) -> None:
 def _operation_before_metadata(operation: PendingOperation) -> SourceMetadata:
     if isinstance(operation, PendingBatchOperation):
         if not operation.steps:
-            raise ValueError("Пустой batch не имеет исходных метаданных.")
+            raise ValueError("An empty batch has no source metadata.")
         return operation.steps[0].metadata
     return operation.metadata
 
@@ -504,37 +512,37 @@ def _step_result_summary(step: SinglePendingOperation) -> str | None:
     action = step.plan.action
     preview = step.preview
     if action == Action.DEDUPLICATE:
-        return f"Удалено дублей: <b>{preview.matched_rows}</b>"
+        return f"Duplicates removed: <b>{preview.matched_rows}</b>"
     if action == Action.DELETE_ROWS:
         filters = getattr(step.plan, "filters", [])
         operator = getattr(filters[0], "operator", None) if len(filters) == 1 else None
         if len(filters) == 1 and getattr(operator, "value", None) == "is_empty":
             column = getattr(filters[0], "column", None)
-            header = getattr(column, "header", None) or getattr(column, "name", None) or "значений"
-            return f"Удалено пустых {esc(str(header))}: <b>{preview.matched_rows}</b>"
-        return f"Удалено строк: <b>{preview.matched_rows}</b>"
+            header = getattr(column, "header", None) or getattr(column, "name", None) or "values"
+            return f"Removed empty {esc(str(header))}: <b>{preview.matched_rows}</b>"
+        return f"Rows deleted: <b>{preview.matched_rows}</b>"
     if action == Action.RENAME_COLUMN and isinstance(step, PendingExcelOperation):
         old = step.plan.target_columns[0].header if step.plan.target_columns else "—"
         new = step.plan.new_column_name or "—"
-        return f"Переименовано: <code>{esc(old)} → {esc(new)}</code>"
+        return f"Renamed: <code>{esc(old)} → {esc(new)}</code>"
     if action == Action.UPDATE_ROWS:
         assignments = getattr(step.plan, "assignments", [])
         rendered: list[str] = []
         for assignment in assignments[:3]:
             column = getattr(assignment, "column", None)
-            name = getattr(column, "header", None) or getattr(column, "name", None) or "поле"
+            name = getattr(column, "header", None) or getattr(column, "name", None) or "field"
             rendered.append(f"{esc(str(name))} → {esc(str(assignment.value))}")
         tail = " · " + ", ".join(rendered) if rendered else ""
-        return f"Обновлено строк: <b>{preview.matched_rows}</b>{tail}"
+        return f"Rows updated: <b>{preview.matched_rows}</b>{tail}"
     if action == Action.CLEAR_VALUES:
-        return f"Очищено ячеек: <b>{preview.affected_cells}</b>"
+        return f"Cells cleared: <b>{preview.affected_cells}</b>"
     if action == Action.DROP_COLUMN and isinstance(step, PendingExcelOperation):
         name = step.plan.target_columns[0].header if step.plan.target_columns else "—"
-        return f"Удалён столбец: <code>{esc(name)}</code>"
+        return f"Column dropped: <code>{esc(name)}</code>"
     if action == Action.ADD_COLUMN and isinstance(step, PendingExcelOperation):
-        return f"Добавлен столбец: <code>{esc(step.plan.new_column_name or '—')}</code>"
+        return f"Column added: <code>{esc(step.plan.new_column_name or '—')}</code>"
     if action == Action.REPLACE_ALL_VALUES:
-        return f"Заменено ячеек: <b>{preview.affected_cells}</b>"
+        return f"Cells replaced: <b>{preview.affected_cells}</b>"
     return None
 
 
@@ -547,20 +555,20 @@ def completed_summary_text(
     before_rows = _metadata_rows(_operation_before_metadata(operation))
     after_rows = _metadata_rows(refreshed_metadata)
     lines = [
-        "<b>Готово</b>",
+        "<b>Done</b>",
         f"{refreshed_source.origin_icon} <code>{esc(refreshed_source.display_name)}</code>",
         "",
-        f"Было строк: <b>{before_rows}</b>",
-        f"Стало строк: <b>{after_rows}</b>",
+        f"Rows before: <b>{before_rows}</b>",
+        f"Rows after: <b>{after_rows}</b>",
     ]
     details = [item for item in (_step_result_summary(step) for step in _summary_steps(operation)) if item]
     if details:
         lines.extend(["", *details])
     if operation.execution.copy_original:
-        lines.extend(["", "Оригинал не изменён · создана отдельная копия."])
+        lines.extend(["", "Original unchanged · a separate copy was created."])
     if operation.execution.repeated_from_operation_id:
         lines.append(
-            "Повторена операция: "
+            "Repeated operation: "
             f"<code>#{esc(operation.execution.repeated_from_operation_id)}</code>"
         )
     lines.extend(
@@ -575,15 +583,15 @@ def completed_summary_text(
 async def send_latest_processed_file(message: Message, user_id: int) -> bool:
     record = repository.get_latest_completed_file_operation(user_id)
     if record is None or not record.result_path:
-        await message.answer("Пока нет обработанного файла, который можно отправить.")
+        await message.answer("There is no processed file to send yet.")
         return True
     path = Path(record.result_path).resolve()
     if not path.is_file():
-        await message.answer("Последний обработанный файл больше не найден на диске.")
+        await message.answer("The latest processed file is no longer available on disk.")
         return True
     await message.answer_document(
         document=FSInputFile(path, filename=path.name),
-        caption=f"📎 <b>Последний обработанный файл</b>\n<code>{esc(path.name)}</code>",
+        caption=f"📎 <b>Latest processed file</b>\n<code>{esc(path.name)}</code>",
     )
     try:
         repository.add_event(
@@ -605,22 +613,22 @@ async def rename_latest_processed_file(
 ) -> bool:
     record = repository.get_latest_completed_file_operation(user_id)
     if record is None or not record.result_path:
-        await message.answer("Пока нет итогового файла, который можно переименовать.")
+        await message.answer("There is no result file to rename yet.")
         return True
     old_path = Path(record.result_path).resolve()
     if not old_path.is_file():
-        await message.answer("Последний итоговый файл больше не найден на диске.")
+        await message.answer("The latest result file is no longer available on disk.")
         return True
     new_path = _rename_target_path(old_path, requested_name)
     if new_path == old_path:
-        await message.answer(f"Файл уже называется <code>{esc(old_path.name)}</code>.")
+        await message.answer(f"The file is already named <code>{esc(old_path.name)}</code>.")
         return True
     async with _lock_for(old_path):
         await asyncio.to_thread(_rename_source_file, old_path, new_path)
         repository.relocate_file_path(user_id, old_path, new_path, record.operation_id)
         source = catalog.find_by_path(user_id, new_path)
         if source is None:
-            raise RuntimeError("Переименованный файл не появился в каталоге.")
+            raise RuntimeError("The renamed file did not appear in the catalog.")
         metadata = await inspect_source(source)
         repository.set_active_source(
             user_id,
@@ -630,7 +638,7 @@ async def rename_latest_processed_file(
             record.operation_id,
         )
     await message.answer(
-        "<b>Файл переименован</b>\n"
+        "<b>File renamed</b>\n"
         f"<code>{esc(old_path.name)} → {esc(new_path.name)}</code>",
         reply_markup=completed_operation_keyboard(record.operation_id),
     )
@@ -644,8 +652,8 @@ async def rename_latest_processed_file(
 def undo_more_keyboard(page: int = 0) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="↩️ Откатить ещё", callback_data="undo:latest")],
-            [InlineKeyboardButton(text="⬅️ К списку", callback_data=f"files:page:{page}")],
+            [InlineKeyboardButton(text="↩️ Undo another", callback_data="undo:latest")],
+            [InlineKeyboardButton(text="⬅️ Back to list", callback_data=f"files:page:{page}")],
         ]
     )
 
@@ -660,7 +668,7 @@ def source_choice_keyboard(sources: list[DataSource]) -> InlineKeyboardMarkup:
         ]
         for source in sources[:8]
     ]
-    rows.append([InlineKeyboardButton(text="📂 Все файлы", callback_data="files:page:0")])
+    rows.append([InlineKeyboardButton(text="📂 All files", callback_data="files:page:0")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
@@ -672,14 +680,14 @@ def files_text(
 ) -> str:
     pages = max((len(sources) - 1) // FILES_PER_PAGE + 1, 1)
     safe_page = min(max(page, 0), pages - 1)
-    prefix = "✅ Обновлено\n" if refreshed else ""
-    active = f"<code>{esc(active_name)}</code>" if active_name else "не выбран"
+    prefix = "✅ Refreshed\n" if refreshed else ""
+    active = f"<code>{esc(active_name)}</code>" if active_name else "not selected"
     return (
         prefix
-        + "<b>Файлы</b>\n"
-        + f"Активный: {active}\n"
-        + f"{len(sources)} источников · {safe_page + 1}/{pages}\n\n"
-        + "Выберите файл."
+        + "<b>Files</b>\n"
+        + f"Active: {active}\n"
+        + f"{len(sources)} sources · {safe_page + 1}/{pages}\n\n"
+        + "Choose a file."
     )
 
 
@@ -721,15 +729,15 @@ async def inspect_source(source: DataSource) -> SourceMetadata:
         worker = asyncio.to_thread(inspect_sqlite, source.path, source.display_name)
     else:
         raise ValueError(
-            f"Адаптер {source.kind_label} пока показывает файл в списке, "
-            "но ещё не управляет его данными."
+            f"The {source.kind_label} adapter currently lists this file, "
+            "but does not manage its data yet."
         )
     try:
         return await asyncio.wait_for(worker, timeout=SOURCE_INSPECTION_TIMEOUT_SECONDS)
     except TimeoutError as error:
         raise TimeoutError(
-            "Анализ структуры занял больше 30 секунд. "
-            "Файл слишком тяжёлый или повреждён; операция остановлена."
+            "Schema inspection took more than 30 seconds. "
+            "The file is too large or damaged; the operation was stopped."
         ) from error
 
 
@@ -743,7 +751,7 @@ async def activate_source(
     if cancel_pending:
         repository.cancel_open_operations(
             user_id,
-            "Пользователь выбрал другой источник.",
+            "The user selected another source.",
         )
     repository.set_active_source(
         user_id,
@@ -763,7 +771,7 @@ async def get_active_source(user_id: int) -> ActiveSource | None:
     if source is None:
         repository.clear_active_source(
             user_id,
-            "Файл удалён, переименован или вышел из разрешённого каталога.",
+            "The file was deleted, renamed, or moved outside the allowed catalog.",
         )
         return None
 
@@ -774,7 +782,7 @@ async def get_active_source(user_id: int) -> ActiveSource | None:
     try:
         metadata = await inspect_source(source)
     except Exception:
-        repository.clear_active_source(user_id, "Источник больше не читается.")
+        repository.clear_active_source(user_id, "The source is no longer readable.")
         raise
     repository.set_active_source(
         user_id,
@@ -795,33 +803,33 @@ def source_header(source: DataSource) -> list[str]:
 
 def workbook_text(source: DataSource, metadata: WorkbookMetadata) -> str:
     lines = source_header(source)
-    lines.append(f"Листов: {len(metadata.sheets)}")
+    lines.append(f"Sheets: {len(metadata.sheets)}")
     for sheet in metadata.sheets[:5]:
         columns = ", ".join(esc(item.header[:45]) for item in sheet.columns[:10])
         lines.extend(
             [
                 "",
-                f"<b>{esc(sheet.name)}</b> · {sheet.data_rows} строк",
-                f"{columns or 'Столбцы не найдены'}",
+                f"<b>{esc(sheet.name)}</b> · {sheet.data_rows} rows",
+                f"{columns or 'No columns found'}",
             ]
         )
-    lines.extend(["", "Можно писать одну или несколько задач одним сообщением."])
+    lines.extend(["", "You can send one or multiple tasks in one message."])
     return "\n".join(lines)
 
 
 def sqlite_text(source: DataSource, metadata: SqliteMetadata) -> str:
     lines = source_header(source)
-    lines.append(f"Таблиц: {len(metadata.tables)}")
+    lines.append(f"Tables: {len(metadata.tables)}")
     for table in metadata.tables[:8]:
         columns = ", ".join(esc(item.name) for item in table.columns[:10])
         lines.extend(
             [
                 "",
-                f"<b>{esc(table.name)}</b> · {table.row_count} строк",
-                f"{columns or 'Столбцы не найдены'}",
+                f"<b>{esc(table.name)}</b> · {table.row_count} rows",
+                f"{columns or 'No columns found'}",
             ]
         )
-    lines.extend(["", "Можно писать одну или несколько задач одним сообщением."])
+    lines.extend(["", "You can send one or multiple tasks in one message."])
     return "\n".join(lines)
 
 
@@ -845,15 +853,15 @@ def active_source_text(active: ActiveSource) -> str:
 def unsupported_source_text(source: DataSource) -> str:
     return "\n".join(
         [
-            "<b>Файл найден</b>",
+            "<b>File found</b>",
             "",
             f"{source.origin_icon} {esc(source.display_name)}",
-            f"Тип: <code>{esc(source.kind_label)}</code>",
-            f"Размер: {esc(human_size(source.size_bytes))}",
+            f"Type: <code>{esc(source.kind_label)}</code>",
+            f"Size: {esc(human_size(source.size_bytes))}",
             "",
-            "Он отображается в дисплее, но адаптер изменения этого формата "
-            "ещё не подключён. Сейчас реально работают Excel (.xlsx) и SQLite "
-            "(.db/.sqlite/.sqlite3).",
+            "It is visible in the file dashboard, but the write adapter for this format "
+            "is not implemented yet. Excel (.xlsx) and SQLite "
+            "(.db/.sqlite/.sqlite3) are currently supported.",
         ]
     )
 
@@ -861,12 +869,12 @@ def unsupported_source_text(source: DataSource) -> str:
 def _single_proposal_lines(operation: SinglePendingOperation) -> list[str]:
     if isinstance(operation, PendingExcelOperation):
         target = (
-            "вся книга"
+            "entire workbook"
             if operation.plan.action == Action.REPLACE_ALL_VALUES
-            else f"лист «{esc(operation.plan.sheet_name)}»"
+            else f"sheet “{esc(operation.plan.sheet_name)}”"
         )
     else:
-        target = f"таблица «{esc(operation.plan.table_name)}»"
+        target = f"table “{esc(operation.plan.table_name)}”"
     return [
         f"<b>{esc(ACTION_LABELS.get(operation.plan.action, operation.plan.action.value))}</b> · {target}",
         esc(operation.preview.summary),
@@ -876,12 +884,12 @@ def _single_proposal_lines(operation: SinglePendingOperation) -> list[str]:
 def _execution_note_lines(options: ExecutionOptions) -> list[str]:
     lines: list[str] = []
     if options.copy_original:
-        lines.append("Результат: отдельная копия · оригинал не изменяется.")
+        lines.append("Result: separate copy · original remains unchanged.")
     if options.output_name:
-        lines.append(f"Имя результата: <code>{esc(options.output_name)}</code>")
+        lines.append(f"Output name: <code>{esc(options.output_name)}</code>")
     if options.repeated_from_operation_id:
         lines.append(
-            "Повтор операции: "
+            "Repeat of operation: "
             f"<code>#{esc(options.repeated_from_operation_id)}</code>"
         )
     return lines
@@ -892,7 +900,7 @@ def proposal_text(operation: PendingOperation) -> str:
         affected = sum(step.preview.affected_cells for step in operation.steps)
         matched = sum(step.preview.matched_rows for step in operation.steps)
         lines = [
-            f"<b>План готов · {len(operation.steps)} задач</b>",
+            f"<b>Plan ready · {len(operation.steps)} tasks</b>",
             f"{operation.source.origin_icon} <code>{esc(operation.source.display_name)}</code>",
             "",
         ]
@@ -903,7 +911,7 @@ def proposal_text(operation: PendingOperation) -> str:
         lines.extend(
             [
                 "",
-                f"Итого: строк {matched}, ячеек {affected}.",
+                f"Total: rows {matched}, cells {affected}.",
             ]
         )
         notes = _execution_note_lines(operation.execution)
@@ -912,7 +920,7 @@ def proposal_text(operation: PendingOperation) -> str:
         return "\n".join(lines)
 
     lines = [
-        "<b>План готов</b>",
+        "<b>Plan ready</b>",
         f"{operation.source.origin_icon} <code>{esc(operation.source.display_name)}</code>",
         "",
         *_single_proposal_lines(operation),
@@ -929,9 +937,9 @@ def _append_preview_rows(lines: list[str], operation: SinglePendingOperation, li
         cells: list[str] = []
         if isinstance(preview, ExcelOperationPreview):
             row_label = (
-                f"{row.sheet_name} · строка {row.row_number}"
+                f"{row.sheet_name} · row {row.row_number}"
                 if row.sheet_name
-                else f"Строка {row.row_number}"
+                else f"Row {row.row_number}"
             )
             for cell in row.cells:
                 value = f"{cell.column_header}: {cell.before}"
@@ -947,17 +955,17 @@ def _append_preview_rows(lines: list[str], operation: SinglePendingOperation, li
                 cells.append(esc(value))
         candidate = f"<b>{esc(row_label)}</b>: " + "; ".join(cells)
         if len("\n".join([*lines, candidate])) > 3600:
-            lines.append("…preview сокращён.")
+            lines.append("…preview truncated.")
             return
         lines.append(candidate)
     if preview.matched_rows > min(len(preview.rows), limit):
-        lines.append(f"…и ещё {preview.matched_rows - min(len(preview.rows), limit)} строк.")
+        lines.append(f"…and {preview.matched_rows - min(len(preview.rows), limit)} more rows.")
 
 
 def preview_text(operation: PendingOperation) -> str:
     if isinstance(operation, PendingBatchOperation):
         lines = [
-            f"<b>Preview · {len(operation.steps)} задач</b>",
+            f"<b>Preview · {len(operation.steps)} tasks</b>",
             f"{operation.source.origin_icon} {esc(operation.source.display_name)}",
         ]
         for index, step in enumerate(operation.steps, start=1):
@@ -965,12 +973,12 @@ def preview_text(operation: PendingOperation) -> str:
             lines.append(esc(step.preview.summary))
             _append_preview_rows(lines, step, limit=3)
             if len("\n".join(lines)) > 3600:
-                lines.append("…остальные задачи скрыты из-за лимита Telegram.")
+                lines.append("…remaining tasks are hidden due to Telegram message limits.")
                 break
         return "\n".join(lines)
 
     preview = operation.preview
-    target_label = "Лист" if isinstance(operation, PendingExcelOperation) else "Таблица"
+    target_label = "Sheet" if isinstance(operation, PendingExcelOperation) else "Table"
     target_name = preview.sheet_name if isinstance(preview, ExcelOperationPreview) else preview.table_name
     lines = [
         "<b>Preview</b>",
@@ -1065,7 +1073,7 @@ def _single_pending_from_payload(
             created_at=record.created_at,
             execution=ExecutionOptions.model_validate(payload.get("execution", {})),
         )
-    raise ValueError("Сохранённый шаг имеет неизвестный или изменившийся движок.")
+    raise ValueError("The saved step uses an unknown or incompatible engine.")
 
 
 def pending_from_record(record: OperationRecord) -> PendingOperation:
@@ -1073,20 +1081,20 @@ def pending_from_record(record: OperationRecord) -> PendingOperation:
     source_id = str(payload.get("source_id", ""))
     source = catalog.get(record.user_id, source_id)
     if source is None:
-        raise ValueError("Источник удалён, переименован или больше не разрешён.")
+        raise ValueError("The source was deleted, renamed, or is no longer allowed.")
     if source.path != Path(str(payload.get("source_path", ""))).resolve():
-        raise ValueError("Путь источника не совпал с сохранённым планом.")
+        raise ValueError("The source path does not match the saved plan.")
     if payload.get("engine") == "batch":
         raw_steps = payload.get("steps")
         if not isinstance(raw_steps, list) or not raw_steps:
-            raise ValueError("Сохранённый batch пуст.")
+            raise ValueError("The saved batch is empty.")
         steps = [
             _single_pending_from_payload(record, item, source, f"{record.operation_id}.{index}")
             for index, item in enumerate(raw_steps, start=1)
             if isinstance(item, dict)
         ]
         if len(steps) != len(raw_steps):
-            raise ValueError("Сохранённый batch повреждён.")
+            raise ValueError("The saved batch is corrupted.")
         return PendingBatchOperation(
             operation_id=record.operation_id,
             user_id=record.user_id,
@@ -1100,8 +1108,8 @@ def pending_from_record(record: OperationRecord) -> PendingOperation:
 
 def history_text(records: list[OperationRecord]) -> str:
     if not records:
-        return "<b>История пуста</b>\nПока не было текстовых команд."
-    lines = ["<b>Последние операции</b>", ""]
+        return "<b>History is empty</b>\nNo text commands have been processed yet."
+    lines = ["<b>Recent operations</b>", ""]
     for record in records:
         payload = record.plan
         legacy_plan = payload.get("excel_plan", {})
@@ -1120,13 +1128,13 @@ def history_text(records: list[OperationRecord]) -> str:
                 f"<code>{esc(record.operation_id)}</code> — "
                 f"{esc(STATUS_LABELS.get(record.status, record.status))}",
                 f"{format_utc(record.created_at)} · <code>{esc(record.action)}</code>",
-                f"Команда: {esc(shorten(record.command_text, 65))}",
-                f"Источник: {esc(display_name)}"
+                f"Command: {esc(shorten(record.command_text, 65))}",
+                f"Source: {esc(display_name)}"
                 + (f" → {esc(target)}" if target else ""),
                 "",
             ]
         )
-    lines.append("Подробно: <code>/audit ID</code>")
+    lines.append("Details: <code>/audit ID</code>")
     return "\n".join(lines)
 
 
@@ -1150,15 +1158,15 @@ def event_extra(event: AuditEventRecord) -> str:
 
 def audit_text(record: OperationRecord, events: list[AuditEventRecord]) -> str:
     lines = [
-        "<b>Audit log операции</b>",
+        "<b>Operation audit log</b>",
         "",
         f"ID: <code>{esc(record.operation_id)}</code>",
-        f"Статус: {esc(STATUS_LABELS.get(record.status, record.status))}",
-        f"Действие: <code>{esc(record.action)}</code>",
-        f"Команда: {esc(record.command_text)}",
-        f"Создано: {format_utc(record.created_at)}",
+        f"Status: {esc(STATUS_LABELS.get(record.status, record.status))}",
+        f"Action: <code>{esc(record.action)}</code>",
+        f"Command: {esc(record.command_text)}",
+        f"Created: {format_utc(record.created_at)}",
         "",
-        "<b>События</b>",
+        "<b>Events</b>",
     ]
     lines.extend(
         f"{event.created_at.astimezone(timezone.utc).strftime('%H:%M:%S')} — "
@@ -1167,7 +1175,7 @@ def audit_text(record: OperationRecord, events: list[AuditEventRecord]) -> str:
         for event in events
     )
     if record.error_message:
-        lines.extend(["", f"Причина: {esc(record.error_message)}"])
+        lines.extend(["", f"Reason: {esc(record.error_message)}"])
     return "\n".join(lines)
 
 
@@ -1255,8 +1263,8 @@ async def start(message: Message, bot: Bot) -> None:
     user_id = message.from_user.id if message.from_user else 0
     if not allowed(user_id):
         await message.answer(
-            "Доступ запрещён.\n"
-            f"Ваш Telegram ID: <code>{user_id}</code>"
+            "Access denied.\n"
+            f"Your Telegram ID: <code>{user_id}</code>"
         )
         return
     if not onboarding_accepted(user_id):
@@ -1272,14 +1280,14 @@ async def start(message: Message, bot: Bot) -> None:
 async def onboarding_callback(callback: CallbackQuery, bot: Bot) -> None:
     user_id = callback.from_user.id
     if not allowed(user_id):
-        await callback.answer("Доступ запрещён.", show_alert=True)
+        await callback.answer("Access denied.", show_alert=True)
         return
     repository.accept_onboarding(user_id, CURRENT_ONBOARDING_VERSION)
-    await callback.answer("Рабочий режим включён.")
+    await callback.answer("Working mode enabled.")
     if callback.message is None:
         return
     try:
-        await callback.message.edit_text("✅ <b>Готово</b> · правила приняты.")
+        await callback.message.edit_text("✅ <b>Ready</b> · rules accepted.")
     except Exception:
         pass
     await ensure_files_dashboard(
@@ -1294,7 +1302,7 @@ async def onboarding_callback(callback: CallbackQuery, bot: Bot) -> None:
 async def rules(message: Message) -> None:
     user_id = message.from_user.id if message.from_user else 0
     if not allowed(user_id):
-        await message.answer("Доступ запрещён.")
+        await message.answer("Access denied.")
         return
     await message.answer(onboarding_text())
 
@@ -1302,30 +1310,30 @@ async def rules(message: Message) -> None:
 @router.message(Command("whoami"))
 async def whoami(message: Message) -> None:
     user_id = message.from_user.id if message.from_user else 0
-    await message.answer(f"Ваш Telegram ID: <code>{user_id}</code>")
+    await message.answer(f"Your Telegram ID: <code>{user_id}</code>")
 
 
 @router.message(Command("health"))
 async def health(message: Message) -> None:
     user_id = message.from_user.id if message.from_user else 0
     if not allowed(user_id):
-        await message.answer("Доступ запрещён.")
+        await message.answer("Access denied.")
         return
     if not await require_onboarding_message(message, user_id):
         return
-    status = await message.answer("Проверяю сервисы…")
+    status = await message.answer("Checking services…")
     try:
         repository.healthcheck()
         await intent_parser.ping()
         sources = catalog.list_sources(user_id)
         await status.edit_text(
             "Telegram: <b>OK</b>\nOllama: <b>OK</b>\nSQLite audit: <b>OK</b>\n"
-            f"Каталог: <b>OK</b> ({len(sources)} файлов)\n"
-            f"Модель: <code>{esc(settings.ollama_model)}</code>"
+            f"Catalog: <b>OK</b> ({len(sources)} files)\n"
+            f"Model: <code>{esc(settings.ollama_model)}</code>"
         )
     except Exception as error:
         await status.edit_text(
-            "<b>Ошибка проверки</b>\n"
+            "<b>Health check failed</b>\n"
             f"<code>{esc(type(error).__name__)}: {esc(error)}</code>"
         )
 
@@ -1334,16 +1342,16 @@ async def health(message: Message) -> None:
 async def folder(message: Message) -> None:
     user_id = message.from_user.id if message.from_user else 0
     if not allowed(user_id):
-        await message.answer("Доступ запрещён.")
+        await message.answer("Access denied.")
         return
     if not await require_onboarding_message(message, user_id):
         return
     await message.answer(
-        "<b>Управляемая папка</b>\n\n"
+        "<b>Managed workspace</b>\n\n"
         f"<code>{esc(catalog.workspace_root)}</code>\n\n"
-        "Чтобы выбрать папку в другом месте, задайте в <code>.env</code>:\n"
-        "<code>DATA_WORKSPACE_DIR=C:\\путь\\к\\папке</code>\n"
-        "и перезапустите бота. LLM не может выйти за пределы этой папки."
+        "To use a different folder, set this in <code>.env</code>:\n"
+        "<code>DATA_WORKSPACE_DIR=C:\\path\\to\\workspace</code>\n"
+        "and restart the bot. The LLM cannot access files outside this folder."
     )
 
 
@@ -1351,7 +1359,7 @@ async def folder(message: Message) -> None:
 async def files(message: Message, bot: Bot) -> None:
     user_id = message.from_user.id if message.from_user else 0
     if not allowed(user_id):
-        await message.answer("Доступ запрещён.")
+        await message.answer("Access denied.")
         return
     if not await require_onboarding_message(message, user_id):
         return
@@ -1362,7 +1370,7 @@ async def files(message: Message, bot: Bot) -> None:
 async def refresh(message: Message, bot: Bot) -> None:
     user_id = message.from_user.id if message.from_user else 0
     if not allowed(user_id):
-        await message.answer("Доступ запрещён.")
+        await message.answer("Access denied.")
         return
     if not await require_onboarding_message(message, user_id):
         return
@@ -1379,7 +1387,7 @@ async def refresh(message: Message, bot: Bot) -> None:
 async def source(message: Message) -> None:
     user_id = message.from_user.id if message.from_user else 0
     if not allowed(user_id):
-        await message.answer("Доступ запрещён.")
+        await message.answer("Access denied.")
         return
     if not await require_onboarding_message(message, user_id):
         return
@@ -1387,14 +1395,14 @@ async def source(message: Message) -> None:
         active = await get_active_source(user_id)
     except Exception as error:
         await message.answer(
-            f"Источник больше не читается: <code>{esc(type(error).__name__)}: "
+            f"The source is no longer readable: <code>{esc(type(error).__name__)}: "
             f"{esc(error)}</code>",
             reply_markup=main_menu_keyboard(),
         )
         return
     if active is None:
         await message.answer(
-            "Источник не выбран. Откройте дисплей файлов.",
+            "No source selected. Open the file dashboard.",
             reply_markup=main_menu_keyboard(),
         )
         return
@@ -1405,7 +1413,7 @@ async def source(message: Message) -> None:
 async def history(message: Message) -> None:
     user_id = message.from_user.id if message.from_user else 0
     if not allowed(user_id):
-        await message.answer("Доступ запрещён.")
+        await message.answer("Access denied.")
         return
     if not await require_onboarding_message(message, user_id):
         return
@@ -1416,7 +1424,7 @@ async def history(message: Message) -> None:
 async def audit(message: Message) -> None:
     user_id = message.from_user.id if message.from_user else 0
     if not allowed(user_id):
-        await message.answer("Доступ запрещён.")
+        await message.answer("Access denied.")
         return
     if not await require_onboarding_message(message, user_id):
         return
@@ -1428,7 +1436,7 @@ async def audit(message: Message) -> None:
         else repository.get_latest_operation(user_id)
     )
     if record is None or record.user_id != user_id:
-        await message.answer("Операция не найдена. Используйте <code>/history</code>.")
+        await message.answer("Operation not found. Use <code>/history</code>.")
         return
     await message.answer(
         audit_text(record, repository.list_events(record.operation_id, user_id))
@@ -1438,7 +1446,7 @@ async def audit(message: Message) -> None:
 @router.callback_query(F.data.startswith("menu:"))
 async def menu_callback(callback: CallbackQuery) -> None:
     if not allowed(callback.from_user.id):
-        await callback.answer("Доступ запрещён.", show_alert=True)
+        await callback.answer("Access denied.", show_alert=True)
         return
     if not await require_onboarding_callback(callback):
         return
@@ -1451,9 +1459,9 @@ async def menu_callback(callback: CallbackQuery) -> None:
             )
         return
     if action == "health":
-        await callback.answer("Используйте /health", show_alert=True)
+        await callback.answer("Use /health", show_alert=True)
         return
-    await callback.answer("Неизвестная кнопка.", show_alert=True)
+    await callback.answer("Unknown button.", show_alert=True)
 
 
 
@@ -1476,27 +1484,27 @@ async def execute_undo(
     if target is None:
         active = await get_active_source(user_id)
         if active is None:
-            await status.edit_text("Сначала выберите файл, изменение которого нужно вернуть.")
+            await status.edit_text("Select the file whose latest change you want to undo first.")
             return
         target = repository.get_latest_undoable_operation(user_id, active.source.path)
 
     if target is None or not target.result_path or not target.snapshot_path:
-        await status.edit_text("Для этого файла нет изменения, которое можно безопасно вернуть.")
+        await status.edit_text("There is no change for this file that can be safely undone.")
         return
     source_path = Path(target.result_path).resolve()
     latest = repository.get_latest_undoable_operation(user_id, source_path)
     if latest is None or latest.operation_id != target.operation_id:
-        await status.edit_text("Эта кнопка устарела. Можно откатить только последнее изменение этого файла.")
+        await status.edit_text("This button is stale. Only the latest change to this file can be undone.")
         return
     if not target.result_sha256:
         await status.edit_text(
-            "Это изменение создано до поддержки безопасного Undo и не содержит контрольной суммы результата. Автоматический откат заблокирован."
+            "This change predates safe Undo and has no result checksum. Automatic rollback is blocked."
         )
         return
 
     undo_operation_id = uuid4().hex[:12]
-    repository.cancel_open_operations(user_id, "Запущен откат последнего изменения.")
-    repository.create_request(undo_operation_id, user_id, f"откатить операцию {target.operation_id}")
+    repository.cancel_open_operations(user_id, "Undo of the latest change started.")
+    repository.create_request(undo_operation_id, user_id, f"undo operation {target.operation_id}")
     source_type = "excel" if source_path.suffix.casefold() == ".xlsx" else "sql"
     repository.save_intent(
         undo_operation_id, user_id, "undo", source_type,
@@ -1514,7 +1522,7 @@ async def execute_undo(
     repository.claim_operation(undo_operation_id, user_id)
 
     try:
-        await status.edit_text("↩️ Возвращаю состояние до последнего изменения…")
+        await status.edit_text("↩️ Restoring the state before the latest change…")
         async with _lock_for(source_path):
             outcome = await asyncio.to_thread(
                 restore_snapshot,
@@ -1527,7 +1535,7 @@ async def execute_undo(
                 None,
             )
             if source is None:
-                raise RuntimeError("Восстановленный файл не найден в каталоге.")
+                raise RuntimeError("The restored file was not found in the catalog.")
             metadata = await inspect_source(source)
             repository.set_active_source(
                 user_id, source.path, source.display_name, _catalog_metadata(source, metadata), undo_operation_id
@@ -1540,7 +1548,7 @@ async def execute_undo(
                 outcome.result_sha256,
             )
             if not repository.mark_undone(target.operation_id, user_id, undo_operation_id):
-                raise RuntimeError("Файл восстановлен, но историю исходной операции не удалось отметить как откатанную.")
+                raise RuntimeError("The file was restored, but the original operation could not be marked as undone.")
             repository.add_event(
                 undo_operation_id,
                 user_id,
@@ -1552,8 +1560,8 @@ async def execute_undo(
             )
 
         await status.edit_text(
-            "<b>Вернул как было</b>\n"
-            f"<code>{esc(source.display_name)}</code> · до операции <code>{esc(target.operation_id)}</code>.",
+            "<b>Restored previous state</b>\n"
+            f"<code>{esc(source.display_name)}</code> · before operation <code>{esc(target.operation_id)}</code>.",
             reply_markup=undo_more_keyboard(),
         )
         try:
@@ -1563,7 +1571,7 @@ async def execute_undo(
     except Exception as error:
         repository.fail_operation(undo_operation_id, user_id, f"{type(error).__name__}: {error}")
         await status.edit_text(
-            "<b>Откат не выполнен</b>\n"
+            "<b>Undo failed</b>\n"
             f"<code>{esc(type(error).__name__)}: {esc(error)}</code>"
         )
 
@@ -1572,7 +1580,7 @@ async def execute_undo(
 async def send_file_callback(callback: CallbackQuery) -> None:
     user_id = callback.from_user.id
     if not allowed(user_id):
-        await callback.answer("Доступ запрещён.", show_alert=True)
+        await callback.answer("Access denied.", show_alert=True)
         return
     if not await require_onboarding_callback(callback):
         return
@@ -1580,15 +1588,15 @@ async def send_file_callback(callback: CallbackQuery) -> None:
     operation_id = (callback.data or "").split(":", 1)[-1].strip()
     record = repository.get_operation(operation_id)
     if record is None or record.user_id != user_id:
-        await callback.answer("Файл этой операции не найден.", show_alert=True)
+        await callback.answer("The file for this operation was not found.", show_alert=True)
         return
     if not record.result_path:
-        await callback.answer("У операции нет готового файла.", show_alert=True)
+        await callback.answer("This operation has no completed file.", show_alert=True)
         return
 
     path = Path(record.result_path).resolve()
     if not path.is_file():
-        await callback.answer("Файл больше не найден на диске.", show_alert=True)
+        await callback.answer("The file is no longer available on disk.", show_alert=True)
         return
     if callback.message is None:
         await callback.answer()
@@ -1601,7 +1609,7 @@ async def send_file_callback(callback: CallbackQuery) -> None:
         await callback.message.answer_document(
             document=FSInputFile(path, filename=path.name),
             caption=(
-                "📎 <b>Текущая версия файла</b>\n"
+                "📎 <b>Current file version</b>\n"
                 f"<code>{esc(path.name)}</code>"
             ),
         )
@@ -1609,7 +1617,7 @@ async def send_file_callback(callback: CallbackQuery) -> None:
         # Ошибка отправки документа не меняет статус уже выполненной операции.
         try:
             await callback.answer(
-                f"Не удалось отправить файл: {type(error).__name__}",
+                f"Could not send file: {type(error).__name__}",
                 show_alert=True,
             )
         except Exception:
@@ -1617,7 +1625,7 @@ async def send_file_callback(callback: CallbackQuery) -> None:
         return
 
     try:
-        await callback.answer("Файл отправлен.")
+        await callback.answer("File sent.")
     except Exception:
         pass
     try:
@@ -1635,7 +1643,7 @@ async def send_file_callback(callback: CallbackQuery) -> None:
 async def undo_callback(callback: CallbackQuery, bot: Bot) -> None:
     user_id = callback.from_user.id
     if not allowed(user_id):
-        await callback.answer("Доступ запрещён.", show_alert=True)
+        await callback.answer("Access denied.", show_alert=True)
         return
     if not await require_onboarding_callback(callback):
         return
@@ -1643,14 +1651,14 @@ async def undo_callback(callback: CallbackQuery, bot: Bot) -> None:
         await callback.answer()
         return
     target = (callback.data or "").split(":", 1)[-1]
-    await callback.answer("Проверяю возможность отката…")
+    await callback.answer("Checking whether Undo is safe…")
     await execute_undo(user_id, callback.message, bot, target)
 
 
 @router.callback_query(F.data.startswith("files:"))
 async def files_callback(callback: CallbackQuery, bot: Bot) -> None:
     if not allowed(callback.from_user.id):
-        await callback.answer("Доступ запрещён.", show_alert=True)
+        await callback.answer("Access denied.", show_alert=True)
         return
     if not await require_onboarding_callback(callback):
         return
@@ -1664,7 +1672,7 @@ async def files_callback(callback: CallbackQuery, bot: Bot) -> None:
             page = int(parts[2])
         except ValueError:
             page = 0
-        await callback.answer("Сканирую папку…" if action == "refresh" else "")
+        await callback.answer("Scanning workspace…" if action == "refresh" else "")
         if callback.message:
             await ensure_files_dashboard(
                 bot,
@@ -1676,7 +1684,7 @@ async def files_callback(callback: CallbackQuery, bot: Bot) -> None:
             )
         return
     if action != "open" or len(parts) != 4:
-        await callback.answer("Некорректная кнопка.", show_alert=True)
+        await callback.answer("Invalid button.", show_alert=True)
         return
     source_id = parts[2]
     try:
@@ -1685,14 +1693,14 @@ async def files_callback(callback: CallbackQuery, bot: Bot) -> None:
         page = 0
     selected = catalog.get(callback.from_user.id, source_id)
     if selected is None:
-        await callback.answer("Файл исчез. Нажмите «Обновить».", show_alert=True)
+        await callback.answer("The file disappeared. Press “Refresh”.", show_alert=True)
         return
     if not selected.editable:
-        await callback.answer("Формат пока только отображается.")
+        await callback.answer("This format is currently read-only in the dashboard.")
         if callback.message:
             await callback.message.answer(unsupported_source_text(selected))
         return
-    await callback.answer("Изучаю структуру…")
+    await callback.answer("Inspecting schema…")
     try:
         active = await activate_source(callback.from_user.id, selected)
         if callback.message:
@@ -1707,7 +1715,7 @@ async def files_callback(callback: CallbackQuery, bot: Bot) -> None:
     except Exception as error:
         if callback.message:
             await callback.message.answer(
-                "<b>Файл не открыт</b>\n"
+                "<b>Could not open file</b>\n"
                 f"<code>{esc(type(error).__name__)}: {esc(error)}</code>"
             )
 
@@ -1716,7 +1724,7 @@ async def files_callback(callback: CallbackQuery, bot: Bot) -> None:
 async def receive_file(message: Message, bot: Bot) -> None:
     user_id = message.from_user.id if message.from_user else 0
     if not allowed(user_id):
-        await message.answer("Доступ запрещён.")
+        await message.answer("Access denied.")
         return
     if not await require_onboarding_message(message, user_id):
         return
@@ -1725,26 +1733,26 @@ async def receive_file(message: Message, bot: Bot) -> None:
         return
     original_name = document.file_name or "uploaded_file"
     if document.file_size and document.file_size > MAX_TELEGRAM_FILE_SIZE_BYTES:
-        await message.answer("Файл больше 20 МБ. Сейчас такие загрузки не поддерживаются.")
+        await message.answer("Files larger than 20 MB are not supported yet.")
         return
     destination = catalog.allocate_telegram_upload(user_id, original_name)
-    status = await message.answer("Сохраняю как источник <code>📨 ТГ</code>…")
+    status = await message.answer("Saving as a <code>📨 TG</code> source…")
     try:
         await bot.download(document, destination=destination)
         selected = catalog.find_by_path(user_id, destination)
         if selected is None:
-            raise RuntimeError("Загруженный файл не появился в каталоге.")
+            raise RuntimeError("The uploaded file did not appear in the catalog.")
         if selected.editable:
             active = await activate_source(user_id, selected)
             text = (
-                "<b>Файл добавлен в дисплей с меткой 📨 ТГ</b>\n\n"
-                "Он не копировался в управляемую локальную папку.\n\n"
+                "<b>File added to the dashboard with the 📨 TG marker</b>\n\n"
+                "It was not copied into the managed local workspace.\n\n"
                 + active_source_text(active)
             )
         else:
             text = (
-                "<b>Файл добавлен в дисплей с меткой 📨 ТГ</b>\n\n"
-                "Он не копировался в управляемую локальную папку.\n\n"
+                "<b>File added to the dashboard with the 📨 TG marker</b>\n\n"
+                "It was not copied into the managed local workspace.\n\n"
                 + unsupported_source_text(selected)
             )
         await status.edit_text(text)
@@ -1758,7 +1766,7 @@ async def receive_file(message: Message, bot: Bot) -> None:
     except Exception as error:
         catalog.discard_telegram_upload(destination)
         await status.edit_text(
-            "Не удалось сохранить источник.\n"
+            "Could not save source.\n"
             f"<code>{esc(type(error).__name__)}: {esc(error)}</code>"
         )
 
@@ -1771,10 +1779,10 @@ async def execute_confirmed_operation(
     operation_id = operation.operation_id
     if datetime.now(timezone.utc) - operation.created_at > OPERATION_TTL:
         repository.expire_operation(operation_id, operation.user_id)
-        await status_message.edit_text("План устарел. Отправьте команду ещё раз.")
+        await status_message.edit_text("The plan expired. Send the command again.")
         return
     if not repository.claim_operation(operation_id, operation.user_id):
-        await status_message.edit_text("Эта операция уже обработана.")
+        await status_message.edit_text("This operation has already been processed.")
         return
 
     created_copy_path: Path | None = None
@@ -1784,9 +1792,9 @@ async def execute_confirmed_operation(
             task_count = len(operation.steps) if isinstance(operation, PendingBatchOperation) else 1
             options = operation.execution
             await status_message.edit_text(
-                f"<b>Выполняю</b> · {task_count} "
-                + ("задача" if task_count == 1 else "задач")
-                + (" · в копии…" if options.copy_original else "…")
+                f"<b>Executing</b> · {task_count} "
+                + ("task" if task_count == 1 else "tasks")
+                + (" · on a copy…" if options.copy_original else "…")
             )
 
             execution_source = operation.source
@@ -1797,7 +1805,7 @@ async def execute_confirmed_operation(
                 created_copy_path = target_path
                 execution_source = catalog.find_by_path(operation.user_id, target_path)
                 if execution_source is None:
-                    raise RuntimeError("Созданная копия не появилась в каталоге файлов.")
+                    raise RuntimeError("The created copy did not appear in the file catalog.")
                 execution_operation = replace(operation, source=execution_source)
                 repository.add_event(
                     operation_id,
@@ -1839,7 +1847,7 @@ async def execute_confirmed_operation(
                     )
                     engine = "sqlite_batch"
                 else:
-                    raise ValueError("Один batch не может смешивать разные движки.")
+                    raise ValueError("A single batch cannot mix execution engines.")
                 details = {
                     "engine": engine,
                     "task_count": task_count,
@@ -1921,7 +1929,7 @@ async def execute_confirmed_operation(
 
             refreshed_source = catalog.find_by_path(operation.user_id, final_path)
             if refreshed_source is None:
-                raise RuntimeError("Итоговый источник исчез из каталога.")
+                raise RuntimeError("The result source disappeared from the catalog.")
             refreshed_metadata = await inspect_source(refreshed_source)
             repository.set_active_source(
                 operation.user_id,
@@ -1979,12 +1987,12 @@ async def execute_confirmed_operation(
         error_message = f"{type(error).__name__}: {error}"
         repository.fail_operation(operation_id, operation.user_id, error_message)
         hint = (
-            "\n\nЕсли Excel-файл открыт в Microsoft Excel — закройте его и повторите подтверждение."
+            "\n\nIf the Excel file is open in Microsoft Excel, close it and confirm again."
             if isinstance(error, PermissionError)
             else ""
         )
         await status_message.edit_text(
-            "<b>Не выполнено</b>\n"
+            "<b>Execution failed</b>\n"
             f"<code>{esc(error_message)}</code>{hint}",
             reply_markup=operation_keyboard(operation_id),
         )
@@ -1993,36 +2001,36 @@ async def execute_confirmed_operation(
 @router.callback_query(F.data.startswith("op:"))
 async def operation_callback(callback: CallbackQuery, bot: Bot) -> None:
     if not allowed(callback.from_user.id):
-        await callback.answer("Доступ запрещён.", show_alert=True)
+        await callback.answer("Access denied.", show_alert=True)
         return
     if not await require_onboarding_callback(callback):
         return
     parts = (callback.data or "").split(":", maxsplit=2)
     if len(parts) != 3:
-        await callback.answer("Некорректная команда.", show_alert=True)
+        await callback.answer("Invalid command.", show_alert=True)
         return
     _, callback_action, operation_id = parts
     record = repository.get_operation(operation_id)
     if record is None:
-        await callback.answer("Операция не найдена.", show_alert=True)
+        await callback.answer("Operation not found.", show_alert=True)
         return
     if callback.from_user.id != record.user_id:
-        await callback.answer("Это чужая операция.", show_alert=True)
+        await callback.answer("This operation belongs to another user.", show_alert=True)
         return
     if record.status not in {"planned", "previewed", "failed"}:
         label = STATUS_LABELS.get(record.status, record.status)
-        await callback.answer(f"Операция уже недоступна: {label}", show_alert=True)
+        await callback.answer(f"Operation is no longer available: {label}", show_alert=True)
         return
     try:
         operation = pending_from_record(record)
     except Exception as error:
-        await callback.answer(f"План недоступен: {error}", show_alert=True)
+        await callback.answer(f"Plan unavailable: {error}", show_alert=True)
         return
     if datetime.now(timezone.utc) - operation.created_at > OPERATION_TTL:
         repository.expire_operation(operation_id, operation.user_id)
-        await callback.answer("Истекли 15 минут подтверждения.", show_alert=True)
+        await callback.answer("The 15-minute confirmation window expired.", show_alert=True)
         if callback.message:
-            await callback.message.edit_text("Операция отменена по тайм-ауту.")
+            await callback.message.edit_text("Operation cancelled due to timeout.")
         return
     if callback_action == "preview":
         repository.mark_previewed(operation_id, operation.user_id)
@@ -2034,19 +2042,19 @@ async def operation_callback(callback: CallbackQuery, bot: Bot) -> None:
         cancelled = repository.cancel_operation(
             operation_id,
             operation.user_id,
-            "Пользователь нажал кнопку «Отменить».",
+            "The user pressed Cancel.",
         )
         if not cancelled:
-            await callback.answer("Операция уже обработана.", show_alert=True)
+            await callback.answer("The operation has already been processed.", show_alert=True)
             return
-        await callback.answer("Отменено.")
+        await callback.answer("Cancelled.")
         if callback.message:
-            await callback.message.edit_text("<b>Отменено</b>")
+            await callback.message.edit_text("<b>Cancelled</b>")
         return
     if callback_action != "confirm":
-        await callback.answer("Неизвестное действие.", show_alert=True)
+        await callback.answer("Unknown action.", show_alert=True)
         return
-    await callback.answer("Подтверждение принято.")
+    await callback.answer("Confirmation accepted.")
     if callback.message is None:
         return
     await execute_confirmed_operation(operation, callback.message, bot)
@@ -2142,7 +2150,7 @@ def _replace_all_plan(intent: IntentDraft, task_text: str) -> ExcelOperationPlan
         sheet_name=None,
         replacement_value=intent.value_hints[0],
         confidence=max(intent.confidence, 0.95),
-        resolution_note="Значение массовой замены получено из структурированного AI-intent.",
+        resolution_note="The replacement value came from the structured AI intent.",
     )
 
 
@@ -2152,7 +2160,7 @@ async def _plan_excel_intent(
     metadata: WorkbookMetadata,
 ) -> ExcelOperationPlan:
     if intent.action not in SUPPORTED_EXCEL_ACTIONS:
-        raise ValueError(f"Excel-действие {intent.action.value} ещё не подключено.")
+        raise ValueError(f"Excel action {intent.action.value} is not implemented yet.")
     special = _replace_all_plan(intent, task_text)
     if special is not None:
         return special
@@ -2166,8 +2174,8 @@ async def _plan_sql_intent(
 ) -> SqlOperationPlan:
     if intent.action not in SUPPORTED_SQL_ACTIONS:
         raise ValueError(
-            "Для SQLite сейчас разрешены select/update_rows/delete_rows, "
-            f"а распознано {intent.action.value}."
+            "SQLite currently supports select/update_rows/delete_rows, "
+            f"but the interpreted action is {intent.action.value}."
         )
     return await sql_planner.resolve(task_text, intent, metadata)
 
@@ -2221,7 +2229,7 @@ async def _build_batch_operation(
                         index,
                         plan.clarification_question
                         or plan.resolution_note
-                        or "Не найдено однозначное совпадение.",
+                        or "No unambiguous match was found.",
                         plan.alternative_matches,
                     )
                 preview = await asyncio.to_thread(
@@ -2265,7 +2273,7 @@ async def _build_batch_operation(
                         index,
                         plan.clarification_question
                         or plan.resolution_note
-                        or "Не найдено однозначное совпадение.",
+                        or "No unambiguous match was found.",
                     )
                 preview = await asyncio.to_thread(
                     build_sql_preview,
@@ -2294,7 +2302,7 @@ async def _build_batch_operation(
                         root / "snapshots",
                     )
         else:
-            raise ValueError("У выбранного формата пока нет движка операций.")
+            raise ValueError("The selected format has no execution engine yet.")
 
     return PendingBatchOperation(
         operation_id=operation_id,
@@ -2327,9 +2335,9 @@ async def _handle_multi_intent_command(
     )
     if active is None:
         reason = (
-            "Найдено несколько похожих файлов."
+            "Multiple similar files were found."
             if len(candidates) > 1
-            else "Источник не найден."
+            else "Source not found."
         )
         repository.stop_operation(
             operation_id,
@@ -2339,7 +2347,7 @@ async def _handle_multi_intent_command(
             "clarification_required",
         )
         await status.edit_text(
-            f"<b>Нужно выбрать файл</b>\n{esc(reason)}",
+            f"<b>Select a file</b>\n{esc(reason)}",
             reply_markup=(
                 source_choice_keyboard(candidates) if candidates else main_menu_keyboard()
             ),
@@ -2353,8 +2361,8 @@ async def _handle_multi_intent_command(
         matches = match_sources(task.source_name_hint, sources)
         if len(matches) == 1 and matches[0].editable and matches[0].path != active.source.path:
             raise ValueError(
-                "Один batch сейчас выполняется в одном источнике. "
-                "Для разных файлов отправьте отдельные сообщения."
+                "A batch currently operates on one source. "
+                "Send separate messages for different files."
             )
 
     try:
@@ -2371,7 +2379,7 @@ async def _handle_multi_intent_command(
         )
         alternatives = "\n".join(f"• {esc(item)}" for item in error.alternatives)
         await status.edit_text(
-            f"<b>Нужно уточнить задачу {error.task_number}</b>\n{esc(error.reason)}"
+            f"<b>Clarification required {error.task_number}</b>\n{esc(error.reason)}"
             + (f"\n\n{alternatives}" if alternatives else "")
         )
         return True
@@ -2401,7 +2409,7 @@ async def _handle_multi_intent_command(
             {"task_count": len(batch.steps)},
         )
         await status.edit_text(
-            f"<b>Изменения не нужны</b> · {len(batch.steps)} задач\n"
+            f"<b>No changes needed</b> · {len(batch.steps)} tasks\n"
             + "\n".join(
                 f"{index}. {esc(step.preview.summary)}"
                 for index, step in enumerate(batch.steps, start=1)
@@ -2516,12 +2524,12 @@ def _execution_from_envelope(envelope) -> ExecutionOptions:
 async def text_command(message: Message, bot: Bot) -> None:
     user_id = message.from_user.id if message.from_user else 0
     if not allowed(user_id):
-        await message.answer("Доступ запрещён.")
+        await message.answer("Access denied.")
         return
     if not await require_onboarding_message(message, user_id):
         return
     if not message.text or message.text.startswith("/"):
-        await message.answer("Напишите запрос обычным текстом.")
+        await message.answer("Send a request in natural language.")
         return
 
     original_text = message.text.strip()
@@ -2534,7 +2542,7 @@ async def text_command(message: Message, bot: Bot) -> None:
         envelope = await intent_parser.parse_command(original_text, runtime_context)
     except Exception as error:
         await message.answer(
-            "<b>Не удалось понять команду</b>\n"
+            "<b>Could not understand the command</b>\n"
             f"<code>{esc(type(error).__name__)}: {esc(error)}</code>"
         )
         return
@@ -2542,7 +2550,7 @@ async def text_command(message: Message, bot: Bot) -> None:
     requested_execution = _execution_from_envelope(envelope)
 
     if envelope.mode == CommandMode.UNDO:
-        status = await message.answer("↩️ Проверяю последнее изменение…")
+        status = await message.answer("↩️ Checking the latest change…")
         await execute_undo(user_id, status, bot)
         return
 
@@ -2553,7 +2561,7 @@ async def text_command(message: Message, bot: Bot) -> None:
     if envelope.mode == CommandMode.RENAME_LAST_FILE:
         target_name = envelope.rename_to or envelope.execution.output_name
         if not target_name:
-            await message.answer("Укажите новое имя итогового файла.")
+            await message.answer("Specify the new result filename.")
             return
         await rename_latest_processed_file(message, user_id, target_name, bot)
         return
@@ -2562,33 +2570,33 @@ async def text_command(message: Message, bot: Bot) -> None:
         record = repository.get_latest_confirmable_operation(user_id)
         if record is None:
             await message.answer(
-                "Сейчас нет операции, которая ждёт подтверждения. "
-                "Сначала напишите, что изменить."
+                "There is no operation awaiting confirmation. "
+                "First describe what you want to change."
             )
             return
         try:
             operation = pending_from_record(record)
         except Exception as error:
             await message.answer(
-                "Сохранённый план больше недоступен: "
+                "The saved plan is no longer available: "
                 f"<code>{esc(type(error).__name__)}: {esc(error)}</code>"
             )
             return
-        status = await message.answer("Выполняю…")
+        status = await message.answer("Executing…")
         await execute_confirmed_operation(operation, status, bot)
         return
 
     if envelope.mode == CommandMode.CANCEL_PENDING:
         record = repository.get_latest_confirmable_operation(user_id)
         if record is None:
-            await message.answer("Сейчас нет операции, которую можно отменить.")
+            await message.answer("There is no operation to cancel.")
             return
         repository.cancel_operation(
             record.operation_id,
             user_id,
-            "Пользователь отменил операцию обычным сообщением.",
+            "The user cancelled the operation with a text message.",
         )
-        await message.answer("<b>Отменено</b>")
+        await message.answer("<b>Cancelled</b>")
         return
 
     if envelope.mode == CommandMode.UPDATE_PENDING:
@@ -2601,7 +2609,7 @@ async def text_command(message: Message, bot: Bot) -> None:
                 await rename_latest_processed_file(message, user_id, target_name, bot)
                 return
             await message.answer(
-                "Сейчас нет операции, параметры которой можно изменить."
+                "There is no pending operation whose output options can be changed."
             )
             return
         try:
@@ -2611,19 +2619,19 @@ async def text_command(message: Message, bot: Bot) -> None:
             repository.save_plan(record.operation_id, user_id, pending_to_payload(pending))
             notes: list[str] = []
             if merged.copy_original:
-                notes.append("Оригинал не буду менять — результат создам отдельной копией.")
+                notes.append("The original will remain unchanged — the result will be created as a separate copy.")
             if merged.output_name:
-                notes.append(f"Итоговое имя: <code>{esc(merged.output_name)}</code>.")
+                notes.append(f"Output filename: <code>{esc(merged.output_name)}</code>.")
             await message.answer(
-                "<b>Параметры результата обновлены</b>\n"
-                + ("\n".join(notes) if notes else "Параметры сохранены.")
+                "<b>Result options updated</b>\n"
+                + ("\n".join(notes) if notes else "Options saved.")
                 + "\n\n"
                 + proposal_text(pending),
                 reply_markup=operation_keyboard(record.operation_id),
             )
         except Exception as error:
             await message.answer(
-                "Не удалось обновить ожидающую операцию: "
+                "Could not update the pending operation: "
                 f"<code>{esc(type(error).__name__)}: {esc(error)}</code>"
             )
         return
@@ -2635,7 +2643,7 @@ async def text_command(message: Message, bot: Bot) -> None:
     if repeat_mode:
         previous = repository.get_latest_completed_file_operation(user_id)
         if previous is None:
-            await message.answer("Пока нет успешной операции, которую можно повторить.")
+            await message.answer("There is no successful operation to repeat yet.")
             return
 
         active = active_before
@@ -2646,8 +2654,8 @@ async def text_command(message: Message, bot: Bot) -> None:
             )
             if len(matches) != 1 or not matches[0].editable:
                 await message.answer(
-                    "Не смог однозначно найти новый файл. Выберите его в дисплее "
-                    "или назовите точнее."
+                    "Could not identify the new file unambiguously. Select it in the dashboard "
+                    "or name it more precisely."
                 )
                 return
             active = await activate_source(
@@ -2657,12 +2665,12 @@ async def text_command(message: Message, bot: Bot) -> None:
             )
         if active is None:
             await message.answer(
-                "Сначала выберите новый файл в дисплее или назовите его в команде."
+                "Select a new file in the dashboard or name it in the command first."
             )
             return
         if previous.result_path and active.source.path == Path(previous.result_path).resolve():
             await message.answer(
-                "Сейчас выбран тот же файл. Выберите новый файл или укажите его имя."
+                "The same file is still selected. Choose a different file or specify its name."
             )
             return
 
@@ -2670,7 +2678,7 @@ async def text_command(message: Message, bot: Bot) -> None:
         replay_context["replaying_operation_id"] = previous.operation_id
         replay = await intent_parser.parse_command(previous.command_text, replay_context)
         if replay.mode != CommandMode.DATA or not replay.tasks:
-            await message.answer("У прошлой операции не осталось повторяемой data-задачи.")
+            await message.answer("The previous operation no longer contains a repeatable data task.")
             return
         intents = [
             task.model_copy(update={"source_name_hint": None})
@@ -2678,7 +2686,7 @@ async def text_command(message: Message, bot: Bot) -> None:
             if task.action != Action.OPEN_SOURCE
         ]
         if not intents:
-            await message.answer("У прошлой операции не осталось повторяемой data-задачи.")
+            await message.answer("The previous operation no longer contains a repeatable data task.")
             return
         effective_request = previous.command_text
         requested_execution = requested_execution.model_copy(
@@ -2689,17 +2697,17 @@ async def text_command(message: Message, bot: Bot) -> None:
     else:
         await message.answer(
             envelope.clarification_question
-            or "Не понял, что нужно сделать. Сформулируйте задачу чуть конкретнее."
+            or "I could not determine the requested action. Please be a bit more specific."
         )
         return
 
     if not intents:
         await message.answer(
-            envelope.clarification_question or "Не нашёл data-задачу в сообщении."
+            envelope.clarification_question or "No data task was found in the message."
         )
         return
 
-    repository.cancel_open_operations(user_id, "Пользователь отправил новую команду.")
+    repository.cancel_open_operations(user_id, "The user sent a new command.")
     operation_id = uuid4().hex[:12]
     repository.create_request(operation_id, user_id, effective_request)
     if repeat_mode and requested_execution.repeated_from_operation_id:
@@ -2717,13 +2725,13 @@ async def text_command(message: Message, bot: Bot) -> None:
     task_count = len(intents)
     status = await message.answer(
         (
-            f"Строю план · {task_count} задач…"
+            f"Building plan · {task_count} tasks…"
             if task_count > 1
             else (
-                f"🎯 Работаю с <code>{esc(selected_record.original_name)}</code>. "
-                "Строю план…"
+                f"🎯 Working with <code>{esc(selected_record.original_name)}</code>. "
+                "Building plan…"
                 if selected_record
-                else "Ищу источник и строю план…"
+                else "Finding source and building plan…"
             )
         )
     )
@@ -2767,9 +2775,9 @@ async def text_command(message: Message, bot: Bot) -> None:
         )
         if active is None:
             reason = (
-                "Найдено несколько похожих файлов."
+                "Multiple similar files were found."
                 if len(candidates) > 1
-                else "Источник не найден или его адаптер пока не подключён."
+                else "Source not found or its adapter is not available yet."
             )
             repository.stop_operation(
                 operation_id,
@@ -2779,7 +2787,7 @@ async def text_command(message: Message, bot: Bot) -> None:
                 "clarification_required",
             )
             await status.edit_text(
-                f"<b>Нужно выбрать файл</b>\n{esc(reason)}",
+                f"<b>Select a file</b>\n{esc(reason)}",
                 reply_markup=(
                     source_choice_keyboard(candidates)
                     if candidates
@@ -2802,9 +2810,9 @@ async def text_command(message: Message, bot: Bot) -> None:
 
         if active.source.kind == SourceKind.EXCEL:
             if intent.action not in SUPPORTED_EXCEL_ACTIONS:
-                raise ValueError(f"Excel-действие {intent.action.value} ещё не подключено.")
+                raise ValueError(f"Excel action {intent.action.value} is not implemented yet.")
             if not isinstance(active.metadata, WorkbookMetadata):
-                raise TypeError("Метаданные Excel имеют неверный тип.")
+                raise TypeError("Excel metadata has an invalid type.")
             plan = await _plan_excel_intent(
                 intent,
                 intent.normalized_request,
@@ -2816,7 +2824,7 @@ async def text_command(message: Message, bot: Bot) -> None:
                 reason = (
                     plan.clarification_question
                     or plan.resolution_note
-                    or "Не найдено однозначное совпадение."
+                    or "No unambiguous match was found."
                 )
                 alternatives = "\n".join(
                     f"• {esc(item)}" for item in plan.alternative_matches
@@ -2829,7 +2837,7 @@ async def text_command(message: Message, bot: Bot) -> None:
                     "clarification_required",
                 )
                 await status.edit_text(
-                    "<b>Нужно уточнение</b>\n"
+                    "<b>Clarification required</b>\n"
                     + esc(reason)
                     + (f"\n\n{alternatives}" if alternatives else "")
                 )
@@ -2855,11 +2863,11 @@ async def text_command(message: Message, bot: Bot) -> None:
         elif active.source.kind == SourceKind.SQLITE:
             if intent.action not in SUPPORTED_SQL_ACTIONS:
                 raise ValueError(
-                    "Для SQLite сейчас разрешены select/update_rows/delete_rows, "
-                    f"а распознано {intent.action.value}."
+                    "SQLite currently supports select/update_rows/delete_rows, "
+                    f"but the interpreted action is {intent.action.value}."
                 )
             if not isinstance(active.metadata, SqliteMetadata):
-                raise TypeError("Метаданные SQLite имеют неверный тип.")
+                raise TypeError("SQLite metadata has an invalid type.")
             plan = await sql_planner.resolve(
                 intent.normalized_request,
                 intent,
@@ -2869,7 +2877,7 @@ async def text_command(message: Message, bot: Bot) -> None:
                 reason = (
                     plan.clarification_question
                     or plan.resolution_note
-                    or "Не найдено однозначное совпадение."
+                    or "No unambiguous match was found."
                 )
                 repository.stop_operation(
                     operation_id,
@@ -2878,7 +2886,7 @@ async def text_command(message: Message, bot: Bot) -> None:
                     reason,
                     "clarification_required",
                 )
-                await status.edit_text("<b>Нужно уточнение</b>\n" + esc(reason))
+                await status.edit_text("<b>Clarification required</b>\n" + esc(reason))
                 return
             preview = await asyncio.to_thread(
                 build_sql_preview,
@@ -2899,7 +2907,7 @@ async def text_command(message: Message, bot: Bot) -> None:
             is_read = plan.action == Action.SELECT
             is_write = plan.action in SQL_WRITE_ACTIONS
         else:
-            raise ValueError("У выбранного формата пока нет движка операций.")
+            raise ValueError("The selected format has no execution engine yet.")
 
         repository.save_plan(operation_id, user_id, pending_to_payload(operation))
         if is_read:
@@ -2918,7 +2926,7 @@ async def text_command(message: Message, bot: Bot) -> None:
                 "no_changes_found",
                 {"summary": preview.summary},
             )
-            await status.edit_text("<b>Изменения не нужны</b>\n" + esc(preview.summary))
+            await status.edit_text("<b>No changes needed</b>\n" + esc(preview.summary))
             return
         await status.edit_text(
             proposal_text(operation),
@@ -2933,10 +2941,7 @@ async def text_command(message: Message, bot: Bot) -> None:
             error_message,
             "planning_failed",
         )
-        await status.edit_text(
-            "<b>Не удалось подготовить план</b>\n"
-            f"<code>{esc(error_message)}</code>"
-        )
+        await status.edit_text(planning_failure_text())
 
 
 async def main() -> None:
@@ -2954,14 +2959,14 @@ async def main() -> None:
                 await ensure_files_dashboard(bot, user_id, user_id)
             except Exception as error:
                 print(
-                    "Не удалось восстановить файловый дисплей для "
+                    "Could not restore the file dashboard for "
                     f"Telegram ID {user_id}: {type(error).__name__}: {error}"
                 )
         dispatcher = Dispatcher()
         dispatcher.include_router(router)
         await bot.delete_webhook(drop_pending_updates=True)
         print(
-            "DataOps Commander запущен. "
+            "DataOps Commander started. "
             f"Ollama: {settings.ollama_model}. "
             f"Workspace: {catalog.workspace_root}. "
             f"Audit DB: {DATABASE_PATH.resolve()}"
@@ -2978,4 +2983,4 @@ if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        print("Бот остановлен")
+        print("Bot stopped")
