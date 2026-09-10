@@ -1,0 +1,46 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Runtime state and user data
+data/
+snapshots/
+results/
+workspace_files/
+*.db
+*.sqlite
+*.sqlite3
+*.log
+
+# Atomic-write / SQLite temporary files
+.dataops-*
+~$*
+*-wal
+*-shm
+*-journal
+
+# Local patch / QA artifacts
+.patch_backups/
+_backup_*/
+APPLY_PATCH*.ps1
+PATCH_MANIFEST*
+SHA256SUMS*
+README_PATCH*
+UPDATE_*_README*
+*.zip
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
