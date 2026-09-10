@@ -26,6 +26,48 @@ The model does not receive arbitrary filesystem access and never executes raw SQ
 
 ---
 
+## Live Demos
+
+The demos below autoplay and loop directly inside the README. They intentionally use free-form **Russian requests inside the English UI** to demonstrate language-agnostic command understanding.
+
+### File & Schema Discovery
+
+![File & Schema Discovery](assets/demo/gifs/01-file-schema-discovery.gif)
+
+Persistent source selection with real workbook schema inspection before planning.
+
+### Multi-step AI Planning
+
+![Multi-step AI Planning](assets/demo/gifs/02-multi-step-ai-planning.gif)
+
+One natural-language request becomes three ordered, schema-grounded Excel operations.
+
+### Human-approved Execution
+
+![Human-approved Execution](assets/demo/gifs/03-human-approved-execution.gif)
+
+Preview → explicit approval → snapshot → controlled write → verification.
+
+### Safe Rollback
+
+![Safe Rollback](assets/demo/gifs/04-safe-rollback.gif)
+
+Snapshot-based Undo restores the previous source state after a real write.
+
+### Natural-language SQLite
+
+![Natural-language SQLite](assets/demo/gifs/05-natural-language-sqlite.gif)
+
+A filtered SQLite query is built from an ordinary request without exposing raw SQL to the model.
+
+### Safe Database Write
+
+![Safe Database Write](assets/demo/gifs/06-safe-database-write.gif)
+
+Structured UPDATE planning with human approval and post-write verification.
+
+---
+
 ## Why this project exists
 
 Many operational data tasks are simple but repetitive:
