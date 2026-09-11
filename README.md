@@ -11,6 +11,7 @@
 ![Excel](https://img.shields.io/badge/Excel-openpyxl-217346)
 ![SQLite](https://img.shields.io/badge/SQLite-supported-003B57?logo=sqlite&logoColor=white)
 ![Tests](https://img.shields.io/badge/regression_tests-50-success)
+[![CI](https://github.com/0xkentoshi/dataops-commander/actions/workflows/ci.yml/badge.svg)](https://github.com/0xkentoshi/dataops-commander/actions/workflows/ci.yml)
 
 **Natural language → structured plan → human approval → verified data change**
 
